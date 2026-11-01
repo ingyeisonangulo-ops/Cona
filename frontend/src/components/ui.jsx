@@ -77,6 +77,14 @@ export function Input({ label, hint, error, className, ...props }) {
   );
 }
 
+export function Textarea({ label, hint, error, className, ...props }) {
+  return (
+    <Field label={label} hint={hint} error={error} className={className}>
+      {(id, describedBy) => <textarea id={id} aria-describedby={describedBy} rows={3} className={cx(inputBase, 'py-2.5')} {...props} />}
+    </Field>
+  );
+}
+
 export function Select({ label, hint, error, className, children, ...props }) {
   return (
     <Field label={label} hint={hint} error={error} className={className}>

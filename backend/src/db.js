@@ -3,6 +3,9 @@ import { AsyncLocalStorage } from 'node:async_hooks';
 import { config } from './config.js';
 import { sslOption } from './lib/pgSsl.js';
 
+// DATE como texto 'YYYY-MM-DD': evita corrimientos de día por zona horaria.
+pg.types.setTypeParser(pg.types.builtins.DATE, (v) => v);
+
 const pool = new pg.Pool({
   connectionString: config.db.url,
   max: config.db.poolMax,

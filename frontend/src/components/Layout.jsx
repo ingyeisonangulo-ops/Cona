@@ -1,13 +1,33 @@
 import { useEffect, useState } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { ClipboardList, LayoutDashboard, LogOut, Menu, ShieldCheck, Stethoscope, UserCircle, Users, X } from 'lucide-react';
+import {
+  CalendarDays,
+  CalendarX2,
+  ClipboardList,
+  ClipboardPlus,
+  LayoutDashboard,
+  LogOut,
+  Menu,
+  ShieldCheck,
+  Stethoscope,
+  Target,
+  UserCircle,
+  UserRound,
+  Users,
+  X,
+} from 'lucide-react';
 import { useAuth } from '../context/AuthContext.jsx';
 import { Logo } from './Logo.jsx';
 import { IconButton } from './ui.jsx';
 
 // Navegación por rol: cada entrada declara los permisos que la habilitan.
 const NAV = [
-  { to: '/', label: 'Tablero', icon: LayoutDashboard, perms: null },
+  { to: '/', label: 'Inicio', icon: LayoutDashboard, perms: null },
+  { to: '/registro', label: 'Registrar servicios', icon: ClipboardPlus, perms: ['REGISTER_SERVICES'] },
+  { to: '/agenda', label: 'Agenda', icon: CalendarDays, perms: ['MANAGE_APPOINTMENTS'] },
+  { to: '/inasistencias', label: 'Inasistencias', icon: CalendarX2, perms: ['CLOSE_ABSENCES'] },
+  { to: '/pacientes', label: 'Pacientes', icon: UserRound, perms: ['SEARCH_PATIENTS'] },
+  { to: '/metas', label: 'Metas y comisiones', icon: Target, perms: ['MANAGE_COLLABORATORS'] },
   { to: '/catalogo', label: 'Servicios y convenios', icon: Stethoscope, perms: ['MANAGE_SERVICES', 'REGISTER_SERVICES', 'VIEW_ROLE_SERVICES'] },
   { to: '/usuarios', label: 'Usuarios', icon: Users, perms: ['MANAGE_USERS'] },
   { to: '/roles', label: 'Roles y permisos', icon: ShieldCheck, perms: ['MANAGE_USERS'] },

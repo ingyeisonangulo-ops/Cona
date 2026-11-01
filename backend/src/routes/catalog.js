@@ -4,11 +4,21 @@ import { db } from '../db.js';
 import { badRequest, requireFound } from '../lib/errors.js';
 import { parse, txRoute } from '../lib/txRoute.js';
 import { requirePermission } from '../middleware/authorize.js';
+import { hasPermission } from '../lib/permissions.js';
 
 // Lectura: cualquier rol con acceso a servicios. Escritura: MANAGE_SERVICES
 // (Super Admin y Gerente según matrix.json; RLS lo refuerza con app_is_admin()).
 const canRead = requirePermission('MANAGE_SERVICES', 'REGISTER_SERVICES', 'VIEW_ROLE_SERVICES');
 const canWrite = requirePermission('MANAGE_SERVICES');
+// Convenios y cifras en dinero: solo personal administrativo/operativo. El rol
+// Colaborador ve el catálogo sin valores monetarios.
+const canReadConvenios = requirePermission('MANAGE_SERVICES', 'REGISTER_SERVICES');
+const canSeeMoney = (user) => hasPermission(user.role, 'MANAGE_SERVICES') || hasPermission(user.role, 'REGISTER_SERVICES');
+function servicioFor(user, s) {
+  if (canSeeMoney(user)) return s;
+  const { valorPublico: _v, costoClinica: _c, ...rest } = s;
+  return rest;
+}
 
 const idParam = z.object({ id: z.uuid('Identificador inválido') });
 const statusSchema = z.object({ status: z.enum(['active', 'inactive']) });
@@ -172,14 +182,14 @@ serviciosRouter.get(
        ORDER BY c.nombre, s.nombre`,
       [status, q || null, categoriaId ?? null],
     );
-    return { servicios: rows.map(mapServicio) };
+    return { servicios: rows.map((r) => servicioFor(req.user, mapServicio(r))) };
   }),
 );
 
 serviciosRouter.get(
   '/:id',
   canRead,
-  txRoute(async (req) => ({ servicio: mapServicio(requireFound(await findServicio(parse(idParam, req.params).id))) })),
+  txRoute(async (req) => ({ servicio: servicioFor(req.user, mapServicio(requireFound(await findServicio(parse(idParam, req.params).id)))) })),
 );
 
 serviciosRouter.post(
@@ -280,7 +290,7 @@ async function assertCategorias(map) {
 
 conveniosRouter.get(
   '/',
-  canRead,
+  canReadConvenios,
   txRoute(async (req) => {
     const { status, q } = parse(listQuery, req.query);
     const { rows } = await db.query(
@@ -296,7 +306,7 @@ conveniosRouter.get(
 
 conveniosRouter.get(
   '/:id',
-  canRead,
+  canReadConvenios,
   txRoute(async (req) => ({ convenio: mapConvenio(requireFound(await findConvenio(parse(idParam, req.params).id))) })),
 );
 

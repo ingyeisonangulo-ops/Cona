@@ -106,6 +106,7 @@ export default function LoginPage() {
         <Button type="submit" loading={loading} icon={LogIn} disabled={!email || !password}>
           Ingresar
         </Button>
+        <p className="text-center text-xs text-muted">Por seguridad, tras 5 intentos fallidos el acceso se bloquea durante 15 minutos.</p>
       </form>
     </AuthShell>
   );

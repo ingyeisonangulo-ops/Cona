@@ -13,6 +13,11 @@ import { authRouter } from './routes/auth.js';
 import { auditRouter, rolesRouter } from './routes/admin.js';
 import { categoriasRouter, conveniosRouter, serviciosRouter } from './routes/catalog.js';
 import { usersRouter } from './routes/users.js';
+import { atencionesRouter, serviciosRealizadosRouter } from './routes/atenciones.js';
+import { cierresRouter, citasRouter } from './routes/citas.js';
+import { colaboradoresRouter, configuracionRouter, metasRouter, miProgresoRouter } from './routes/colaboradores.js';
+import { pacientesRouter } from './routes/pacientes.js';
+import { tableroRouter } from './routes/tablero.js';
 
 export function createApp() {
   const app = express();
@@ -63,6 +68,16 @@ export function createApp() {
   api.use('/categorias', categoriasRouter);
   api.use('/servicios', serviciosRouter);
   api.use('/convenios', conveniosRouter);
+  api.use('/pacientes', pacientesRouter);
+  api.use('/atenciones', atencionesRouter);
+  api.use('/servicios-realizados', serviciosRealizadosRouter);
+  api.use('/citas', citasRouter);
+  api.use('/cierres-ausencia', cierresRouter);
+  api.use('/colaboradores', colaboradoresRouter);
+  api.use('/metas', metasRouter);
+  api.use('/configuracion', configuracionRouter);
+  api.use('/mi-progreso', miProgresoRouter);
+  api.use('/tablero', tableroRouter);
   api.use(notFoundApi);
 
   app.use('/api', api);

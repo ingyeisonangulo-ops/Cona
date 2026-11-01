@@ -1,82 +1,9 @@
-// Prueba de integración de la API real contra PGlite (sesión compartida, pool=1).
-import { PGlite } from '@electric-sql/pglite';
-import { PGLiteSocketServer } from '@electric-sql/pglite-socket';
-import { execFile } from 'node:child_process';
-import { promisify } from 'node:util';
-const execFileP = promisify(execFile);
-import { fileURLToPath, pathToFileURL } from 'node:url';
+// Integración de la API (núcleo): auth, usuarios, catálogo y auditoría sobre PGlite.
+import { startHarness } from '../../scripts/lib/harness.js';
 
-const BACKEND = fileURLToPath(new URL('../../', import.meta.url)).replace(/[/]$/, '');
-const PORT = 54329;
-const ORIGIN = 'http://localhost:5173';
-const url = `postgresql://postgres:x@127.0.0.1:${PORT}/postgres`;
-
-const pg = await PGlite.create();
-const server = new PGLiteSocketServer({ db: pg, port: PORT, host: '127.0.0.1' });
-await server.start();
-
-const env = {
-  ...process.env,
-  NODE_ENV: 'development',
-  MIGRATION_DATABASE_URL: url,
-  APP_DB_PASSWORD: 'app-password-1234567890',
-  DB_SSL: 'disable',
-  SEED_SUPERADMIN_EMAIL: 'admin@clinica.test',
-  SEED_SUPERADMIN_PASSWORD: 'SuperAdmin#2026!',
-  SEED_DEV_PASSWORD: 'DevPassword#2026',
-  SEED_DEV_EMAIL_DOMAIN: 'clinica.test',
-};
-const run = async (script) => { const { stdout, stderr } = await execFileP('node', [script], { cwd: BACKEND, env }); console.log((stdout + stderr).trim()); };
-await run('scripts/migrate.js');
-await run('scripts/migrate.js'); // idempotente
-await run('scripts/seed.js');
-await run('scripts/seed.js'); // idempotente
-
-await pg.exec('SET ROLE crm_app'); // la sesión compartida pasa a ser la del rol de la app
-
-Object.assign(process.env, {
-  APP_ORIGIN: ORIGIN,
-  APP_DATABASE_URL: url,
-  DB_SSL: 'disable',
-  DB_POOL_MAX: '1',
-  JWT_ACCESS_SECRET: 'x'.repeat(48),
-  COOKIE_SECURE: 'false',
-  LOCKOUT_MAX_ATTEMPTS_IP: '9',
-});
-const { createApp } = await import(pathToFileURL(`${BACKEND}/src/app.js`).href);
-const { db } = await import(pathToFileURL(`${BACKEND}/src/db.js`).href);
-console.log('rol app:', await db.assertRestrictedRole());
-const http = createApp().listen(0);
-const base = `http://127.0.0.1:${http.address().port}/api`;
-
-let fails = 0;
-const ok = (c, m, extra = '') => {
-  console.log(`${c ? 'PASS' : 'FAIL'} ${m}${c ? '' : ' ' + extra}`);
-  if (!c) fails++;
-};
-
-class Client {
-  jar = {};
-  async req(method, path, body, { origin = ORIGIN } = {}) {
-    const headers = { cookie: Object.entries(this.jar).map(([k, v]) => `${k}=${v}`).join('; ') };
-    if (origin) headers.origin = origin;
-    if (body !== undefined) headers['content-type'] = 'application/json';
-    const res = await fetch(base + path, { method, headers, body: body === undefined ? undefined : JSON.stringify(body) });
-    for (const c of res.headers.getSetCookie()) {
-      const [kv] = c.split(';');
-      const [k, ...v] = kv.split('=');
-      const val = v.join('=');
-      if (!val || /Expires=Thu, 01 Jan 1970/.test(c)) delete this.jar[k];
-      else this.jar[k] = val;
-    }
-    const data = await res.json().catch(() => null);
-    return { status: res.status, data, cookies: res.headers.getSetCookie() };
-  }
-  login(email, password) {
-    return this.req('POST', '/auth/login', { email, password });
-  }
-}
-
+const h = await startHarness({ env: { LOCKOUT_MAX_ATTEMPTS_IP: '9' } });
+const { Client, pg, check: ok } = h;
+let crashed = false;
 try {
   const anon = new Client();
   let r = await anon.req('POST', '/auth/login', { email: 'gerente@clinica.test', password: 'mala-clave-123' });
@@ -168,7 +95,7 @@ try {
   for (let i = 0; i < 5; i++) await atk.login('nuevo@clinica.test', 'incorrecta-xx-' + i);
   for (let i = 0; i < 2; i++) await atk.login('otro@clinica.test', 'incorrecta-yy-' + i);
   r = await atk.login('nuevo@clinica.test', 'TemporalSegura1');
-  ok(r.status === 429, 'cuenta bloqueada tras 5 fallos (incluso con clave correcta)');
+  ok(r.status === 401 && r.data.error.message === 'Email o contraseña incorrectos', 'cuenta bloqueada tras 5 fallos (respuesta genérica, incluso con clave correcta)');
   r = await ger.req('GET', '/users');
   ok(r.data.users.find((u) => u.id === nuevoId).lockedUntil, 'lista muestra bloqueo');
   // La IP también quedó bloqueada (todo viene de 127.0.0.1): se valida que el desbloqueo de cuenta funcione a nivel de BD.
@@ -189,8 +116,8 @@ try {
   // Refresh rotativo + reutilización
   const rt = new Client();
   r = await rt.login('admin@clinica.test', 'SuperAdmin#2026!');
-  // La IP de prueba está bloqueada por los 5 fallos anteriores; se espera 429 aquí.
-  ok(r.status === 429, 'bloqueo por IP activo (9 fallos desde la misma IP)');
+  // La IP de prueba quedó bloqueada (9 fallos): respuesta genérica 401.
+  ok(r.status === 401, 'bloqueo por IP activo (9 fallos desde la misma IP)');
   await pg.exec('RESET ROLE');
   await pg.exec('DELETE FROM auth_throttle');
   await pg.exec('SET ROLE crm_app');
@@ -242,11 +169,10 @@ try {
   ok(r.data.logs[0]?.metadata?.from === 'Colaborador' && r.data.logs[0]?.metadata?.to === 'Asistente', 'ROLE_CHANGED con from/to');
 } catch (err) {
   console.error(err);
-  fails++;
+  crashed = true;
 } finally {
-  http.close();
-  await db.close();
-  await server.stop();
-  console.log(fails ? `\n${fails} FALLOS` : '\nTODO OK');
-  process.exit(fails ? 1 : 0);
+  await h.close();
+  const { fails } = h.results();
+  console.log(fails || crashed ? `\n${fails} FALLOS` : '\nTODO OK');
+  process.exit(fails || crashed ? 1 : 0);
 }

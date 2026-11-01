@@ -93,7 +93,7 @@ function ServicioModal({ initial, categorias, onClose, onSaved }) {
   );
 }
 
-export default function ServiciosTab({ canWrite }) {
+export default function ServiciosTab({ canWrite, showMoney }) {
   const [q, setQ] = useState('');
   const [status, setStatus] = useState('active');
   const [view, setView] = useState('grid');
@@ -150,14 +150,18 @@ export default function ServiciosTab({ canWrite }) {
                 <StatusBadge status={s.status} />
               </div>
               <dl className="grid grid-cols-3 gap-2 text-sm">
-                <div>
-                  <dt className="text-xs text-muted">Público</dt>
-                  <dd className="font-bold text-primary">{formatCOP(s.valorPublico)}</dd>
-                </div>
-                <div>
-                  <dt className="text-xs text-muted">Costo</dt>
-                  <dd className="font-semibold">{formatCOP(s.costoClinica)}</dd>
-                </div>
+                {showMoney && (
+                  <>
+                    <div>
+                      <dt className="text-xs text-muted">Público</dt>
+                      <dd className="font-bold text-primary">{formatCOP(s.valorPublico)}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-xs text-muted">Costo</dt>
+                      <dd className="font-semibold">{formatCOP(s.costoClinica)}</dd>
+                    </div>
+                  </>
+                )}
                 <div>
                   <dt className="text-xs text-muted">Puntos</dt>
                   <dd className="font-semibold">{formatNumber(s.puntos)}</dd>
@@ -174,8 +178,8 @@ export default function ServiciosTab({ canWrite }) {
               <tr>
                 <th className={th}>Servicio</th>
                 <th className={th}>Categoría</th>
-                <th className={`${th} text-right`}>Valor público</th>
-                <th className={`${th} text-right`}>Costo clínica</th>
+                {showMoney && <th className={`${th} text-right`}>Valor público</th>}
+                {showMoney && <th className={`${th} text-right`}>Costo clínica</th>}
                 <th className={`${th} text-right`}>Puntos</th>
                 <th className={th}>Estado</th>
                 {canWrite && <th className={th}>Acciones</th>}
@@ -186,8 +190,8 @@ export default function ServiciosTab({ canWrite }) {
                 <tr key={s.id} className="hover:bg-bg/60">
                   <td className={`${td} font-semibold`}>{s.nombre}</td>
                   <td className={td}>{s.categoriaNombre}</td>
-                  <td className={`${td} text-right font-semibold text-primary`}>{formatCOP(s.valorPublico)}</td>
-                  <td className={`${td} text-right`}>{formatCOP(s.costoClinica)}</td>
+                  {showMoney && <td className={`${td} text-right font-semibold text-primary`}>{formatCOP(s.valorPublico)}</td>}
+                  {showMoney && <td className={`${td} text-right`}>{formatCOP(s.costoClinica)}</td>}
                   <td className={`${td} text-right`}>{formatNumber(s.puntos)}</td>
                   <td className={td}>
                     <StatusBadge status={s.status} />

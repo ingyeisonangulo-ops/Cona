@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { config } from '../config.js';
 import { db } from '../db.js';
-import { badRequest, tooManyRequests, unauthorized } from '../lib/errors.js';
+import { badRequest, unauthorized } from '../lib/errors.js';
 import { permissionsFor } from '../lib/permissions.js';
 import { parse, txRoute } from '../lib/txRoute.js';
 import { authenticate } from '../middleware/authenticate.js';
@@ -14,7 +14,6 @@ import { hashToken, newOpaqueToken, signAccessToken } from '../security/tokens.j
 export const authRouter = Router();
 
 const INVALID_CREDENTIALS = 'Email o contraseña incorrectos';
-const LOCKED_MESSAGE = 'Demasiados intentos fallidos. Intente de nuevo en 15 minutos.';
 
 const loginSchema = z.object({
   email: z.string().trim().toLowerCase().max(254),
@@ -46,10 +45,13 @@ authRouter.post('/login', async (req, res) => {
   const { email, password } = parse(loginSchema, req.body ?? {});
   const ip = req.ip;
 
+  // Bloqueado: misma respuesta genérica y mismo costo bcrypt que un fallo normal,
+  // para no revelar si la cuenta existe ni si está bloqueada.
   const lock = await db.query('SELECT auth_throttle_check($1, $2) AS until', [email, ip]);
   if (lock.rows[0].until) {
+    await verifyPassword(password, undefined);
     await audit(req, 'LOGIN_BLOCKED', { entityType: 'user', metadata: { email } });
-    throw tooManyRequests(LOCKED_MESSAGE);
+    throw unauthorized(INVALID_CREDENTIALS, 'INVALID_CREDENTIALS');
   }
 
   const { rows } = await db.query('SELECT * FROM auth_find_user_for_login($1)', [email]);

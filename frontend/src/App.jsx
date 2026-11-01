@@ -12,6 +12,12 @@ import ProfilePage from './pages/ProfilePage.jsx';
 import ResetPasswordPage from './pages/ResetPasswordPage.jsx';
 import RolesPage from './pages/RolesPage.jsx';
 import UsersPage from './pages/UsersPage.jsx';
+import AgendaPage from './pages/AgendaPage.jsx';
+import InasistenciasPage from './pages/InasistenciasPage.jsx';
+import MetasPage from './pages/MetasPage.jsx';
+import MiProgresoPage from './pages/MiProgresoPage.jsx';
+import PacientesPage from './pages/PacientesPage.jsx';
+import RegistroPage from './pages/RegistroPage.jsx';
 
 function FullScreenLoader() {
   return (
@@ -59,6 +65,12 @@ export default function App() {
             </RequirePermission>
           }
         />
+        <Route path="registro" element={<RequirePermission perms={['REGISTER_SERVICES']}><RegistroPage /></RequirePermission>} />
+        <Route path="pacientes" element={<RequirePermission perms={['SEARCH_PATIENTS']}><PacientesPage /></RequirePermission>} />
+        <Route path="agenda" element={<RequirePermission perms={['MANAGE_APPOINTMENTS']}><AgendaPage /></RequirePermission>} />
+        <Route path="inasistencias" element={<RequirePermission perms={['CLOSE_ABSENCES']}><InasistenciasPage /></RequirePermission>} />
+        <Route path="metas" element={<RequirePermission perms={['MANAGE_COLLABORATORS']}><MetasPage /></RequirePermission>} />
+        <Route path="mi-progreso" element={<RequirePermission perms={['VIEW_PERSONAL_PROGRESS']}><MiProgresoPage /></RequirePermission>} />
         <Route path="usuarios" element={<RequirePermission perms={['MANAGE_USERS']}><UsersPage /></RequirePermission>} />
         <Route path="roles" element={<RequirePermission perms={['MANAGE_USERS']}><RolesPage /></RequirePermission>} />
         <Route path="auditoria" element={<RequirePermission perms={['VIEW_AUDIT_LOGS']}><AuditPage /></RequirePermission>} />

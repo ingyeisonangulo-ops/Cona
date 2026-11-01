@@ -23,7 +23,7 @@ Formato: decisión · motivo.
 10. **Contraseñas > 72 bytes se rechazan** (bcrypt trunca silenciosamente); también se rechazan espacios al inicio/fin.
 11. **Timing equilibrado**: si la cuenta no existe se compara contra un hash bcrypt ficticio; las cuentas inactivas se evalúan después de la comparación.
 12. **Bloqueo**: 5 fallos en 15 min por **cuenta** (aunque no exista, para no permitir enumeración) y 5 por **IP**, ambos con bloqueo de 15 min. El éxito reinicia solo el contador de la cuenta, no el de la IP. Los umbrales son configurables (`LOCKOUT_*`): si la clínica comparte una IP pública (NAT), puede subirse `LOCKOUT_MAX_ATTEMPTS_IP`.
-    Durante el bloqueo se responde 429 con un mensaje uniforme (igual para cuentas existentes e inexistentes).
+    **(Revisado en Bloque 2)** Durante el bloqueo se responde **401 "Email o contraseña incorrectos"**, idéntico a cualquier fallo y ejecutando igualmente bcrypt (mismo tiempo). Así no se revela si la cuenta existe, está inactiva o bloqueada. Como contrapartida de usabilidad, la pantalla de login muestra siempre el aviso fijo "tras 5 intentos fallidos el acceso se bloquea durante 15 minutos".
 13. **Access token JWT HS256 de 15 min** con solo `sub` y `tv` (token_version). Rol, estado y permisos se recargan de la BD en cada request, para que un cambio de rol o desactivación surta efecto inmediato.
 14. **Refresh token opaco rotativo** (7 días, vida máxima de la familia 30 días), almacenado como SHA-256. Reutilizar un token ya rotado revoca toda la familia y se audita (`REFRESH_TOKEN_REUSE`).
 15. Cookies `HttpOnly; Secure; SameSite=Strict` con prefijos `__Host-` (access, `Path=/`) y `__Secure-` (refresh, `Path=/api/auth`). `COOKIE_SECURE=false` solo se permite fuera de producción.
@@ -72,4 +72,50 @@ Formato: decisión · motivo.
 41. **Íconos y logo provisionales** (amanecer con trazo rojo sobre azul institucional) generados por `frontend/scripts/generate-icons.mjs`. Reemplazar por el logo oficial en `src/components/Logo.jsx` y `public/icons/`.
 42. CSP estricta (`default-src 'self'`, sin inline scripts, `frame-ancestors 'none'`), HSTS en producción.
 43. `npm audit` reporta un aviso en `deepmerge` dentro de `workbox-build` (dependencia **solo de build**, no se incluye en el bundle). Se acepta; revisar al actualizar vite-plugin-pwa.
-44. Los KPI de finanzas, citas, recurrencia y progreso se muestran como "Disponible en un próximo bloque" (sin datos inventados); los de catálogo usan datos reales.
+44. ~~KPI pendientes~~ (Bloque 1). En el Bloque 2 todos los indicadores usan datos reales; el inicio depende del rol: Tablero gerencial (finanzas), panel operativo (Asistente) o Mi progreso (Colaborador).
+
+## Bloque 2 — Operación clínica
+
+### Pacientes y registro de servicios (RF-08)
+45. **Cédula única por organización**, normalizada (sin puntos, guiones ni espacios; mayúsculas), 4–15 caracteres alfanuméricos para admitir CE/pasaporte. Es **inmutable** (trigger).
+46. **RF-08**: si la cédula existe, el servidor **ignora** cualquier dato personal enviado en `/api/atenciones` (no se puede sobrescribir un paciente desde el formulario de registro). La edición de contacto es una acción aparte y auditada (`PUT /api/pacientes/:id`, requiere `REGISTER_SERVICES` y `SEARCH_PATIENTS`).
+47. **El servidor calcula todos los valores** (nunca confía en el cliente): `valor_cobrado = valor_público × (1 − %descuento del convenio para la categoría del servicio)`; `costo_aplicado = costo_clínica`; `puntos` del catálogo. Los valores quedan **congelados** en el registro (cambios posteriores del catálogo no alteran el histórico).
+48. **"Otros" = valor manual** del servicio seleccionado, activado con un clic explícito, con **motivo obligatorio** (≥ 5 caracteres). Se marca `valor_manual`, anula el convenio para ese ítem, conserva el costo del catálogo y queda auditado. Los convenios con valor manual no cuentan en el ranking de descuentos.
+49. El **colaborador** de un servicio debe ser un usuario activo con rol **Colaborador** de la misma organización (validado en BD). La fecha del servicio no puede ser futura.
+50. **Sin borrado de servicios realizados**: se corrigen con edición (Asistente/Gerente) o se **anulan** con motivo (solo `MANAGE_SERVICES`). Los anulados salen de métricas, puntos y comisiones.
+51. **Historial inmutable** (`servicios_realizados_historial`): un trigger guarda una instantánea completa en cada INSERT/UPDATE con usuario y fecha; no admite UPDATE/DELETE/TRUNCATE. Además, cada operación se registra en `audit_logs`.
+
+### Agenda
+52. **Slots de 30 min** (hh:00 / hh:30) de **07:00 a 18:30**, y **una cita vigente por horario** en toda la clínica (índice único parcial; las citas Aplazadas liberan el slot). Ajustable en `routes/citas.js` (`AGENDA`) y el CHECK de la tabla.
+53. Se agregó `colaborador_id` (opcional) a `Cita`: sin él no es posible el RF-32 ("Mis citas" del colaborador). También `tipo` (`normal` / `control` / `reagendada`) junto a `cita_origen_id`.
+54. **Transiciones**: Pendiente → Confirmado; Pendiente/Confirmado → Cumplida, Ausente o Aplazado. Cumplida, Ausente y Aplazado son **finales**. No se marca Cumplida/Ausente una cita futura ni se agenda en el pasado. Aplazar crea la nueva cita (`reagendada`) y conserva la original como historial.
+55. **Alertas** (zona America/Bogota): amarillo = faltan 2 días; naranja = mañana **u hoy** (aún no vencida); rojo = fecha/hora pasada sin cumplir (Pendiente/Confirmado).
+56. La **cita de control** solo se agenda al marcar Cumplida y hereda servicio y colaborador si no se indican.
+
+### Inasistencias
+57. Solo se cierran citas en estado **Ausente**, **una vez** (cierre inmutable). Motivo "Otros" exige observación. Canales: Llamada, WhatsApp, SMS, Correo electrónico, Presencial (no especificados: se eligieron los habituales).
+58. Reagendar desde el cierre exige además `MANAGE_APPOINTMENTS` y crea la cita en la misma transacción.
+
+### Metas, comisiones y recurrencia
+59. **Semanas fijas**: 1–7, 8–14, 15–21 y 22–fin (los días 29–31 van a la semana 4).
+60. **Propuesta semanal proporcional a los días** de cada semana: semanas 1–3 = ⌊meta × 7 / días del mes⌋ y el residuo va a la semana 4. El Gerente puede ajustarla manualmente (debe sumar la meta; validado en API y BD). La meta en dinero se distribuye con la misma regla.
+61. **Comisión** = `(puntos logrados − meta) × valor punto adicional` **solo si** puntos logrados ≥ meta; si no, 0. Exactamente la meta da comisión 0.
+62. **Tasa de recurrencia global** del mes M = pacientes con servicio registrado en M−1 que **también** tienen servicio en M ÷ pacientes con servicio en M−1. Se basa en servicios realizados (no en citas).
+63. **Bono automático**: ≥ 80% otorga los puntos del nivel 80; ≥ 60% los del nivel 60 (**no acumulativos**). Se suma a los puntos de cada colaborador **con meta asignada en el mes** y por tanto puede generar comisión. Se calcula en vivo (es provisional mientras el mes no termine). Configuración por organización con nivel 80 ≥ nivel 60.
+64. La tasa se expone mediante una función `SECURITY DEFINER` que solo devuelve agregados, para que el Colaborador (que por RLS no ve filas ajenas) pueda conocerla.
+
+### Privacidad del Colaborador
+65. **Defensa en profundidad**: RLS impide al rol Colaborador leer `pacientes` y `cierres_ausencia`, y limita `citas`, `servicios_realizados` y `metas_colaborador` a **sus propias filas**. La API de "Mi progreso" arma la respuesta por **lista blanca** (solo puntos, metas en puntos y cantidades): sin dinero, comisiones, datos de pacientes ni ocupación de agenda.
+66. **Catálogo para Colaborador**: ve servicios y categorías con sus puntos, **sin** `valorPublico`/`costoClinica`, y no accede a convenios (`/api/convenios` exige `MANAGE_SERVICES` o `REGISTER_SERVICES`).
+67. RF-32: "no cumplidas" = Ausente + Pendiente/Confirmado ya vencidas. Se muestran también las "programadas" (futuras) como cantidad.
+68. Las comisiones son dinero: **no** se muestran al Colaborador (solo en el Tablero gerencial).
+
+### Tablero gerencial
+69. Solo `VIEW_DASHBOARD_FINANCE` (Super Admin, Gerente). Periodo mensual. "Servicios agendados" = citas del mes excepto Aplazadas.
+70. **Clasificación de rentabilidad** por utilidad total del mes: top N = "más rentables" y bottom N = "menos rentables", con N = min(3, ⌊servicios/2⌋) para no solaparse.
+
+### Auditoría de seguridad y pruebas
+71. `scripts/audit-security.js` es **autocontenido**: levanta PostgreSQL en memoria (PGlite, devDependency) con las migraciones y el seed reales y la API real con el rol `crm_app`. No toca la base de datos de producción. Para aislar la prueba de bloqueo por cuenta usa un umbral de IP alto; el bloqueo por IP se verifica en `test:integration`.
+72. El paso del tiempo (15 min de bloqueo, citas vencidas) se simula ajustando filas como dueño de la BD dentro del entorno de prueba.
+73. Un `DELETE` forzado sobre un router protegido por permiso responde **403** (el guard del router se evalúa antes de resolver la ruta) y sobre rutas sin borrado **404**; ambas respuestas son seguras (solo `{ error }`) y el registro permanece.
+74. Las fechas `DATE` se transportan como texto `YYYY-MM-DD` (parser de `pg`) para evitar corrimientos de día por zona horaria.

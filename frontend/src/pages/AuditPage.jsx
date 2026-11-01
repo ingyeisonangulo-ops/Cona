@@ -42,7 +42,6 @@ export default function AuditPage() {
 
   useEffect(() => {
     load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [action]);
 
   return (

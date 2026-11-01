@@ -10,6 +10,8 @@
     "start": "npm --prefix backend run migrate && npm --prefix backend start",
     "migrate": "npm --prefix backend run migrate",
     "seed": "npm --prefix backend run seed",
-    "test": "npm --prefix backend test"
+    "test": "npm --prefix backend test",
+    "test:integration": "npm --prefix backend run test:integration",
+    "audit:security": "npm --prefix backend run audit:security"
   }
 }

@@ -1,73 +1,74 @@
 import { Link } from 'react-router-dom';
-import { BadgePercent, CalendarDays, FolderTree, Repeat, Stethoscope, TrendingUp, Trophy, Wallet } from 'lucide-react';
-import { Card, PageHeader } from '../components/ui.jsx';
+import { BellRing, CalendarDays, CalendarX2, ClipboardPlus } from 'lucide-react';
+import { ALERTA_STYLES, AlertaBadge, formatFecha } from '../components/business.jsx';
+import { Card, PageHeader, Spinner } from '../components/ui.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
-import { formatNumber } from '../lib/format.js';
 import { useResource } from '../lib/useResource.js';
+import MiProgresoPage from './MiProgresoPage.jsx';
+import TableroPage from './TableroPage.jsx';
 
-function KpiCard({ icon: Icon, title, value, hint, to, pending }) {
-  const body = (
-    <Card className="flex h-full items-start gap-4 transition-shadow hover:shadow-pop">
-      <span className="grid size-12 shrink-0 place-items-center rounded-full bg-primary text-white shadow-sm">
-        <Icon className="size-6" aria-hidden />
-      </span>
-      <div className="min-w-0">
-        <p className="text-sm font-medium text-muted">{title}</p>
-        <p className={`mt-1 text-2xl font-extrabold tracking-tight ${pending ? 'text-muted/60' : 'text-text'}`}>{value}</p>
-        <p className="mt-1 text-xs text-muted">{hint}</p>
-      </div>
-    </Card>
-  );
-  return to ? (
-    <Link to={to} className="rounded-card focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/20">
-      {body}
-    </Link>
-  ) : (
-    body
-  );
-}
-
-const PENDING = 'Disponible en un próximo bloque';
-
-export default function DashboardPage() {
+// Inicio según el rol: Tablero gerencial (finanzas), panel operativo
+// (agenda/registro) o la vista restringida del Colaborador.
+function OperativoHome() {
   const { user, can } = useAuth();
-  const canCatalog = can('MANAGE_SERVICES', 'REGISTER_SERVICES', 'VIEW_ROLE_SERVICES');
-  const servicios = useResource(canCatalog ? '/servicios?status=active' : null);
-  const categorias = useResource(canCatalog ? '/categorias?status=active' : null);
-  const convenios = useResource(canCatalog ? '/convenios?status=active' : null);
+  const alertas = useResource(can('MANAGE_APPOINTMENTS') ? '/citas/alertas' : null);
+  const pendientes = useResource(can('CLOSE_ABSENCES') ? '/cierres-ausencia/pendientes' : null);
+  const lista = alertas.data?.citas ?? [];
 
-  const count = (r, key) => (r.loading ? '…' : r.error ? '—' : formatNumber(r.data?.[key]?.length ?? 0));
-  const firstName = user.fullName.split(' ')[0];
+  const atajos = [
+    can('REGISTER_SERVICES') && { to: '/registro', label: 'Registrar servicios', icon: ClipboardPlus },
+    can('MANAGE_APPOINTMENTS') && { to: '/agenda', label: 'Agenda', icon: CalendarDays },
+    can('CLOSE_ABSENCES') && { to: '/inasistencias', label: `Inasistencias${pendientes.data ? ` (${pendientes.data.citas.length})` : ''}`, icon: CalendarX2 },
+  ].filter(Boolean);
 
   return (
     <>
-      <PageHeader title={`Hola, ${firstName}`} description={`Resumen general · ${user.role}`} />
-
-      {canCatalog && (
-        <section aria-labelledby="kpi-catalogo" className="mb-8">
-          <h2 id="kpi-catalogo" className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted">
-            Catálogo
+      <PageHeader title={`Hola, ${user.fullName.split(' ')[0]}`} description={`Panel operativo · ${user.role}`} />
+      <div className="mb-6 grid gap-4 md:grid-cols-3">
+        {atajos.map(({ to, label, icon: Icon }) => (
+          <Link key={to} to={to} className="rounded-card focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/20">
+            <Card className="flex items-center gap-4 transition-shadow hover:shadow-pop">
+              <span className="grid size-12 place-items-center rounded-full bg-primary text-white">
+                <Icon className="size-6" aria-hidden />
+              </span>
+              <span className="font-bold">{label}</span>
+            </Card>
+          </Link>
+        ))}
+      </div>
+      {can('MANAGE_APPOINTMENTS') && (
+        <Card>
+          <h2 className="mb-3 flex items-center gap-2 font-bold">
+            <BellRing className="size-5 text-secondary" aria-hidden /> Citas que requieren atención
           </h2>
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            <KpiCard icon={Stethoscope} title="Servicios activos" value={count(servicios, 'servicios')} hint="Ofertados al público" to="/catalogo" />
-            <KpiCard icon={FolderTree} title="Categorías activas" value={count(categorias, 'categorias')} hint="Agrupación del catálogo" to="/catalogo?tab=categorias" />
-            <KpiCard icon={BadgePercent} title="Convenios vigentes" value={count(convenios, 'convenios')} hint="Descuentos por categoría" to="/catalogo?tab=convenios" />
-          </div>
-        </section>
+          {alertas.loading && !alertas.data ? (
+            <Spinner />
+          ) : lista.length === 0 ? (
+            <p className="text-sm text-muted">Sin alertas.</p>
+          ) : (
+            <ul className="grid gap-2 md:grid-cols-2">
+              {lista.slice(0, 12).map((c) => (
+                <li key={c.id} className={`flex items-center justify-between gap-2 rounded-xl border border-line px-3 py-2 text-sm ${ALERTA_STYLES[c.alerta]?.ring ?? ''}`}>
+                  <span>
+                    <strong>{c.paciente.nombre}</strong>
+                    <span className="block text-xs text-muted">
+                      {formatFecha(c.fecha)} · {c.hora}
+                    </span>
+                  </span>
+                  <AlertaBadge alerta={c.alerta} />
+                </li>
+              ))}
+            </ul>
+          )}
+        </Card>
       )}
-
-      <section aria-labelledby="kpi-gestion">
-        <h2 id="kpi-gestion" className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted">
-          Indicadores de gestión
-        </h2>
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          {can('VIEW_DASHBOARD_FINANCE') && <KpiCard icon={Wallet} title="Ingresos del mes" value="—" hint={PENDING} pending />}
-          {can('VIEW_MONTHLY_APPOINTMENTS_COUNT') && <KpiCard icon={CalendarDays} title="Citas del mes" value="—" hint={PENDING} pending />}
-          {can('VIEW_RECURRENCE_RATE') && <KpiCard icon={Repeat} title="Tasa de recurrencia" value="—" hint={PENDING} pending />}
-          {can('VIEW_PERSONAL_PROGRESS') && <KpiCard icon={Trophy} title="Mi progreso (puntos)" value="—" hint={PENDING} pending />}
-          {can('VIEW_DASHBOARD_FINANCE') && <KpiCard icon={TrendingUp} title="Margen por servicio" value="—" hint={PENDING} pending />}
-        </div>
-      </section>
     </>
   );
+}
+
+export default function DashboardPage() {
+  const { can } = useAuth();
+  if (can('VIEW_DASHBOARD_FINANCE')) return <TableroPage />;
+  if (can('MANAGE_APPOINTMENTS', 'REGISTER_SERVICES', 'CLOSE_ABSENCES')) return <OperativoHome />;
+  return <MiProgresoPage />;
 }

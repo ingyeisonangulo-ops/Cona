@@ -14,7 +14,10 @@ const TABS = [
 export default function CatalogPage() {
   const { can } = useAuth();
   const [params, setParams] = useSearchParams();
-  const current = TABS.find(([id]) => id === params.get('tab')) ?? TABS[0];
+  // Colaborador: sin convenios ni cifras en dinero (también lo impone la API).
+  const showMoney = can('MANAGE_SERVICES', 'REGISTER_SERVICES');
+  const tabs = TABS.filter(([id]) => id !== 'convenios' || showMoney);
+  const current = tabs.find(([id]) => id === params.get('tab')) ?? tabs[0];
   const [, , Tab] = current;
   // La UI oculta acciones de escritura; el backend las valida igualmente.
   const canWrite = can('MANAGE_SERVICES');
@@ -26,7 +29,7 @@ export default function CatalogPage() {
         description={canWrite ? 'Administre el catálogo de la clínica.' : 'Consulta del catálogo vigente.'}
       />
       <div role="tablist" aria-label="Catálogo" className="mb-5 flex gap-1 overflow-x-auto rounded-2xl border border-line bg-surface p-1">
-        {TABS.map(([id, label]) => {
+        {tabs.map(([id, label]) => {
           const active = id === current[0];
           return (
             <button
@@ -45,7 +48,7 @@ export default function CatalogPage() {
         })}
       </div>
       <div role="tabpanel">
-        <Tab key={current[0]} canWrite={canWrite} />
+        <Tab key={current[0]} canWrite={canWrite} showMoney={showMoney} />
       </div>
     </>
   );
