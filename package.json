@@ -1,0 +1,15 @@
+{
+  "name": "nuevo-amanecer-crm",
+  "private": true,
+  "description": "CRM y Tablero Gerencial — IPS Centro Odontológico Nuevo Amanecer del Pacífico SAS",
+  "engines": {
+    "node": ">=22.9"
+  },
+  "scripts": {
+    "build": "npm --prefix frontend ci && npm --prefix frontend run build && npm --prefix backend ci --omit=dev",
+    "start": "npm --prefix backend run migrate && npm --prefix backend start",
+    "migrate": "npm --prefix backend run migrate",
+    "seed": "npm --prefix backend run seed",
+    "test": "npm --prefix backend test"
+  }
+}

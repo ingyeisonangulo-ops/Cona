@@ -1,0 +1,64 @@
+@import 'tailwindcss';
+
+/* Tokens de diseño — IPS Centro Odontológico Nuevo Amanecer del Pacífico */
+@theme {
+  /* Breakpoints mobile-first: 360 / 768 / 1024 / 1440 */
+  --breakpoint-*: initial;
+  --breakpoint-xs: 22.5rem;
+  --breakpoint-md: 48rem;
+  --breakpoint-lg: 64rem;
+  --breakpoint-xl: 90rem;
+
+  --color-primary: #1e65d6;
+  --color-primary-hover: #1550b0;
+  --color-primary-soft: #e8f0fe;
+  --color-secondary: #d90429;
+  --color-secondary-soft: #fde8ec;
+  --color-brand-dark: #004aad;
+  --color-ink: #111827;
+  --color-surface: #ffffff;
+  --color-bg: #f0f4f9;
+  --color-login-bg: #e8f0fe;
+  --color-text: #0f172a;
+  --color-muted: #64748b;
+  --color-line: #e2e8f0;
+  --color-success: #15803d;
+  --color-success-soft: #dcfce7;
+
+  --font-sans: 'Inter', 'Segoe UI', system-ui, -apple-system, Roboto, 'Helvetica Neue', Arial, sans-serif;
+
+  --radius-card: 1.5rem;
+  --shadow-card: 0 1px 2px rgb(15 23 42 / 0.04), 0 8px 24px rgb(15 23 42 / 0.06);
+  --shadow-pop: 0 20px 50px rgb(15 23 42 / 0.18);
+}
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+    -webkit-tap-highlight-color: transparent;
+  }
+  body {
+    @apply bg-bg text-text font-sans antialiased;
+    min-height: 100dvh;
+  }
+  :focus-visible {
+    outline: 3px solid color-mix(in srgb, var(--color-primary) 45%, transparent);
+    outline-offset: 2px;
+  }
+}
+
+@layer utilities {
+  /* Safe areas iOS (viewport-fit=cover) */
+  .pt-safe { padding-top: env(safe-area-inset-top); }
+  .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
+  .pl-safe { padding-left: env(safe-area-inset-left); }
+  .pr-safe { padding-right: env(safe-area-inset-right); }
+  .touch-target { min-height: 44px; min-width: 44px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
