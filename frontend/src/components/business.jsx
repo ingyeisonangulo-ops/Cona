@@ -163,3 +163,10 @@ export function useCatalogos({ convenios = true } = {}) {
   }, [convenios]);
   return data;
 }
+
+/** Colaboradores cuyo cargo realiza el servicio (todos si aún no hay servicio). */
+export function colaboradoresPara(servicioId, servicios, colaboradores) {
+  const s = servicios.find((x) => x.id === servicioId);
+  return s?.cargos ? colaboradores.filter((c) => s.cargos.includes(c.cargo)) : colaboradores;
+}
+export const nombreConCargo = (c) => (c.cargo ? `${c.nombre} · ${c.cargo}` : c.nombre);

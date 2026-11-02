@@ -19,7 +19,8 @@ for (const f of readdirSync(fileURLToPath(MIG)).filter((f) => f.endsWith('.sql')
 
 const org = async (slug) => (await q('INSERT INTO organizations (slug,name) VALUES ($1,$1) RETURNING id', [slug])).rows[0].id;
 const A = await org('org-a'), B = await org('org-b');
-const user = async (o, email, role) => (await q('INSERT INTO users (organization_id,email,full_name,role,password_hash) VALUES ($1,$2,$2,$3,$4) RETURNING id', [o, email, role, 'x'])).rows[0].id;
+const user = async (o, email, role) =>
+  (await q('INSERT INTO users (organization_id,email,full_name,role,cargo,password_hash) VALUES ($1,$2,$2,$3,$4,$5) RETURNING id', [o, email, role, role === 'Colaborador' ? 'Odontólogo' : null, 'x'])).rows[0].id;
 const saA = await user(A, 'sa@a.co', 'Super Admin');
 const gA = await user(A, 'g@a.co', 'Gerente');
 const cA = await user(A, 'c@a.co', 'Colaborador');

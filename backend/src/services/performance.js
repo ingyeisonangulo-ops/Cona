@@ -30,8 +30,8 @@ export async function desempenoColaboradores({ anio, mes, colaboradorId = null, 
   const { desde, hasta } = monthBounds(anio, mes);
 
   const colaboradores = colaboradorId
-    ? (await db.query('SELECT id, full_name FROM users WHERE id = $1', [colaboradorId])).rows
-    : (await db.query("SELECT id, full_name FROM users WHERE role = 'Colaborador' AND is_active ORDER BY full_name")).rows;
+    ? (await db.query('SELECT id, full_name, cargo FROM users WHERE id = $1', [colaboradorId])).rows
+    : (await db.query("SELECT id, full_name, cargo FROM users WHERE role IN ('Colaborador', 'Asistente') AND is_active ORDER BY full_name")).rows;
 
   const prod = await db.query(
     `SELECT colaborador_id, extract(day FROM fecha)::int AS dia,
@@ -52,7 +52,7 @@ export async function desempenoColaboradores({ anio, mes, colaboradorId = null, 
   const known = new Set(colaboradores.map((c) => c.id));
   const missing = [...new Set(prod.rows.map((r) => r.colaborador_id))].filter((id) => !known.has(id));
   if (missing.length) {
-    const extra = await db.query('SELECT id, full_name FROM users WHERE id = ANY($1::uuid[])', [missing]);
+    const extra = await db.query('SELECT id, full_name, cargo FROM users WHERE id = ANY($1::uuid[])', [missing]);
     colaboradores.push(...extra.rows);
   }
 
@@ -85,6 +85,7 @@ export async function desempenoColaboradores({ anio, mes, colaboradorId = null, 
     return {
       colaboradorId: c.id,
       nombre: c.full_name,
+      cargo: c.cargo ?? null,
       servicios,
       puntosServicios,
       bonoRecurrencia: bono,

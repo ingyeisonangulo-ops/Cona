@@ -29,6 +29,7 @@ export async function authenticate(req, _res, next) {
     email: user.email,
     fullName: user.full_name,
     role: user.role,
+    cargo: user.cargo ?? null,
     mustChangePassword: user.must_change_password,
     permissions: permissionsFor(user.role),
   };

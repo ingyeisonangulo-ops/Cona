@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { config } from '../config.js';
 import { db } from '../db.js';
 import { badRequest, forbidden, requireFound } from '../lib/errors.js';
+import { CARGOS_COLABORADOR } from '../lib/cargos.js';
 import { ROLES, SUPER_ADMIN } from '../lib/permissions.js';
 import { parse, txRoute } from '../lib/txRoute.js';
 import { requirePermission } from '../middleware/authorize.js';
@@ -16,6 +17,16 @@ const RESET_TTL_MINUTES = 60;
 
 const idParam = z.object({ id: z.uuid('Identificador inválido') });
 const roleField = z.enum(ROLES, { message: 'Rol inválido' });
+const cargoField = z.enum(CARGOS_COLABORADOR, { message: 'Cargo inválido' });
+
+// El Colaborador necesita cargo (Odontólogo, Higienista, Auxiliar o Especialista).
+// La Asistente queda con cargo "Asistente" y Gerente/Super Admin sin cargo (lo
+// normaliza la base de datos).
+function resolveCargo(role, cargo) {
+  if (role !== 'Colaborador') return null;
+  if (!cargo) throw badRequest('Seleccione el cargo del colaborador', 'CARGO_REQUIRED');
+  return cargo;
+}
 const passwordField = z.string().superRefine((v, ctx) => {
   const msg = validatePasswordPolicy(v);
   if (msg) ctx.addIssue({ code: 'custom', message: msg });
@@ -25,17 +36,19 @@ const createSchema = z.object({
   email: z.email('Email inválido').trim().toLowerCase().max(254),
   fullName: z.string().trim().min(2, 'Nombre muy corto').max(200),
   role: roleField,
+  cargo: cargoField.optional(),
   password: passwordField,
 });
 const updateSchema = z
   .object({
     fullName: z.string().trim().min(2, 'Nombre muy corto').max(200).optional(),
     role: roleField.optional(),
+    cargo: cargoField.optional(),
   })
-  .refine((v) => v.fullName !== undefined || v.role !== undefined, 'Nada que actualizar');
+  .refine((v) => v.fullName !== undefined || v.role !== undefined || v.cargo !== undefined, 'Nada que actualizar');
 const statusSchema = z.object({ status: z.enum(['active', 'inactive']) });
 
-const USER_COLUMNS = `u.id, u.email, u.full_name, u.role, u.is_active, u.must_change_password,
+const USER_COLUMNS = `u.id, u.email, u.full_name, u.role, u.cargo, u.is_active, u.must_change_password,
   u.last_login_at, u.created_at, u.updated_at, l.locked_until`;
 
 function toUser(r) {
@@ -44,6 +57,7 @@ function toUser(r) {
     email: r.email,
     fullName: r.full_name,
     role: r.role,
+    cargo: r.cargo,
     status: r.is_active ? 'active' : 'inactive',
     mustChangePassword: r.must_change_password,
     lockedUntil: r.locked_until,
@@ -100,14 +114,15 @@ usersRouter.post(
     async (req, res) => {
       const data = parse(createSchema, req.body ?? {});
       if (data.role === SUPER_ADMIN && req.user.role !== SUPER_ADMIN) throw forbidden('Solo un Super Admin puede crear otro Super Admin');
+      const cargo = resolveCargo(data.role, data.cargo);
       const { rows } = await db.query(
-        `INSERT INTO users (organization_id, email, full_name, role, password_hash, must_change_password)
-         VALUES ($1, $2, $3, $4, $5, true) RETURNING id`,
-        [req.user.organizationId, data.email, data.fullName, data.role, await hashPassword(data.password)],
+        `INSERT INTO users (organization_id, email, full_name, role, cargo, password_hash, must_change_password)
+         VALUES ($1, $2, $3, $4, $5, $6, true) RETURNING id`,
+        [req.user.organizationId, data.email, data.fullName, data.role, cargo, await hashPassword(data.password)],
       );
       const id = rows[0].id;
       res.locals.status = 201;
-      res.locals.audit = { entityId: id, metadata: { email: data.email, role: data.role } };
+      res.locals.audit = { entityId: id, metadata: { email: data.email, role: data.role, cargo } };
       return { user: toUser(await findUser(id)) };
     },
     { audit: 'USER_CREATED', entityType: 'user' },
@@ -127,16 +142,21 @@ usersRouter.patch(
         if (data.role === SUPER_ADMIN && req.user.role !== SUPER_ADMIN) throw forbidden('Solo un Super Admin puede asignar ese rol');
       }
 
-      await db.query('UPDATE users SET full_name = coalesce($1, full_name), role = coalesce($2, role) WHERE id = $3', [
+      const role = data.role ?? target.role;
+      const cargo = resolveCargo(role, data.cargo ?? (role === target.role ? target.cargo : undefined));
+      const cargoChanged = cargo !== target.cargo && role === 'Colaborador';
+
+      await db.query('UPDATE users SET full_name = coalesce($1, full_name), role = $2, cargo = $3 WHERE id = $4', [
         data.fullName ?? null,
-        data.role ?? null,
+        role,
+        cargo,
         target.id,
       ]);
       if (roleChanged) await invalidateSessions(target.id);
 
       res.locals.audit = roleChanged
-        ? { action: 'ROLE_CHANGED', metadata: { from: target.role, to: data.role } }
-        : { metadata: { fields: Object.keys(data) } };
+        ? { action: 'ROLE_CHANGED', metadata: { from: target.role, to: role, cargo } }
+        : { metadata: { fields: Object.keys(data), ...(cargoChanged && { cargo: { from: target.cargo, to: cargo } }) } };
       return { user: toUser(await findUser(target.id)) };
     },
     { audit: 'USER_UPDATED', entityType: 'user' },

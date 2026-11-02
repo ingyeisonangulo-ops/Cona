@@ -16,16 +16,16 @@ function requireEnv(name) {
   return v;
 }
 
-async function ensureUser(client, orgId, { email, fullName, role, password }) {
+async function ensureUser(client, orgId, { email, fullName, role, cargo = null, password }) {
   const existing = await client.query('SELECT id FROM users WHERE email = $1', [email]);
   if (existing.rows.length) {
     console.log(`[seed] ${role.padEnd(12)} ${email} (ya existe, sin cambios)`);
     return false;
   }
   const { rows } = await client.query(
-    `INSERT INTO users (organization_id, email, full_name, role, password_hash)
-     VALUES ($1, $2, $3, $4, $5) RETURNING id`,
-    [orgId, email, fullName, role, await hashPassword(password)],
+    `INSERT INTO users (organization_id, email, full_name, role, cargo, password_hash)
+     VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
+    [orgId, email, fullName, role, cargo, await hashPassword(password)],
   );
   await client.query("SELECT app_audit_log('SEED_USER_CREATED', $1, NULL, 'user', $2, NULL, 'seed', $3)", [
     orgId,
@@ -122,6 +122,8 @@ async function main() {
           email: `${slug}@${domain}`,
           fullName: `${role} de Pruebas`,
           role,
+          // El Colaborador de pruebas es Odontólogo; la Asistente recibe su cargo en la BD.
+          cargo: role === 'Colaborador' ? 'Odontólogo' : null,
           password: devPassword,
         });
         createdDev ||= created;

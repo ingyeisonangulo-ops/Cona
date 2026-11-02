@@ -21,6 +21,7 @@ import {
 import { useAuth } from '../context/AuthContext.jsx';
 import { patch, post } from '../lib/api.js';
 import { formatDateTime } from '../lib/format.js';
+import { PUESTOS, etiquetaPuesto, puestoDe } from '../lib/cargos.js';
 import { useResource } from '../lib/useResource.js';
 
 const ROLES = ['Super Admin', 'Gerente', 'Asistente', 'Colaborador'];
@@ -29,7 +30,7 @@ function UserModal({ initial, assignableRoles, onClose, onSaved }) {
   const [form, setForm] = useState({
     email: initial?.email ?? '',
     fullName: initial?.fullName ?? '',
-    role: initial?.role ?? 'Colaborador',
+    puesto: initial ? puestoDe(initial) : PUESTOS[0].value,
     password: '',
   });
   const [error, setError] = useState('');
@@ -40,9 +41,11 @@ function UserModal({ initial, assignableRoles, onClose, onSaved }) {
     e.preventDefault();
     setSaving(true);
     setError('');
+    const p = PUESTOS.find((x) => x.value === form.puesto);
+    const rolYCargo = { role: p.role, ...(p.cargo && { cargo: p.cargo }) };
     try {
-      if (initial) await patch(`/users/${initial.id}`, { fullName: form.fullName, role: form.role });
-      else await post('/users', form);
+      if (initial) await patch(`/users/${initial.id}`, { fullName: form.fullName, ...rolYCargo });
+      else await post('/users', { email: form.email, fullName: form.fullName, password: form.password, ...rolYCargo });
       onSaved();
     } catch (err) {
       setError(err.message);
@@ -51,7 +54,9 @@ function UserModal({ initial, assignableRoles, onClose, onSaved }) {
     }
   }
 
-  const roles = assignableRoles.includes(form.role) ? assignableRoles : [form.role, ...assignableRoles];
+  // El rol actual se muestra aunque no sea asignable (p. ej. Super Admin visto por un Gerente).
+  const puestos = PUESTOS.filter((p) => assignableRoles.includes(p.role) || p.value === form.puesto);
+  const colaborador = PUESTOS.find((p) => p.value === form.puesto)?.role === 'Colaborador';
 
   return (
     <Modal
@@ -74,12 +79,37 @@ function UserModal({ initial, assignableRoles, onClose, onSaved }) {
         {error && <Alert>{error}</Alert>}
         <Input label="Nombre completo" required maxLength={200} value={form.fullName} onChange={set('fullName')} />
         <Input label="Correo electrónico" type="email" required disabled={Boolean(initial)} value={form.email} onChange={set('email')} autoComplete="off" />
-        <Select label="Rol" value={form.role} onChange={set('role')} disabled={initial?.isSelf}>
-          {roles.map((r) => (
-            <option key={r} value={r}>
-              {r}
-            </option>
-          ))}
+        <Select
+          label="Rol"
+          value={form.puesto}
+          onChange={set('puesto')}
+          disabled={initial?.isSelf}
+          hint={
+            colaborador
+              ? 'Colaborador: ve su progreso y solo los servicios asignados a su cargo.'
+              : form.puesto === 'Asistente'
+                ? 'Asistente: opera agenda y registro, y también realiza servicios y tiene metas.'
+                : undefined
+          }
+        >
+          <optgroup label="Colaboradores">
+            {puestos
+              .filter((p) => p.role === 'Colaborador')
+              .map((p) => (
+                <option key={p.value} value={p.value}>
+                  {p.label}
+                </option>
+              ))}
+          </optgroup>
+          <optgroup label="Administrativos">
+            {puestos
+              .filter((p) => p.role !== 'Colaborador')
+              .map((p) => (
+                <option key={p.value} value={p.value}>
+                  {p.label}
+                </option>
+              ))}
+          </optgroup>
         </Select>
         {!initial && (
           <Input
@@ -237,7 +267,8 @@ export default function UsersPage() {
                     <p className="text-xs text-muted">{u.email}</p>
                   </td>
                   <td className={td}>
-                    <Badge tone={u.role === 'Super Admin' ? 'secondary' : 'primary'}>{u.role}</Badge>
+                    <Badge tone={u.role === 'Super Admin' ? 'secondary' : u.role === 'Colaborador' ? 'teal' : 'primary'}>{etiquetaPuesto(u)}</Badge>
+                    {u.role === 'Colaborador' && <p className="mt-1 text-xs text-muted">Colaborador</p>}
                   </td>
                   <td className={td}>
                     <div className="flex flex-wrap items-center gap-1.5">

@@ -26,8 +26,8 @@ colaboradoresRouter.get(
   '/',
   requirePermission('REGISTER_SERVICES', 'MANAGE_APPOINTMENTS', 'MANAGE_COLLABORATORS'),
   txRoute(async () => {
-    const { rows } = await db.query("SELECT id, full_name FROM users WHERE role = 'Colaborador' AND is_active ORDER BY full_name");
-    return { colaboradores: rows.map((r) => ({ id: r.id, nombre: r.full_name })) };
+    const { rows } = await db.query("SELECT id, full_name, cargo FROM users WHERE role IN ('Colaborador', 'Asistente') AND is_active ORDER BY full_name");
+    return { colaboradores: rows.map((r) => ({ id: r.id, nombre: r.full_name, cargo: r.cargo })) };
   }),
 );
 
@@ -41,10 +41,10 @@ metasRouter.get(
   txRoute(async (req) => {
     const { anio, mes } = parse(periodoSchema(), req.query);
     const { rows } = await db.query(
-      `SELECT u.id, u.full_name, m.meta_puntos, m.meta_dinero, m.valor_punto_adicional, m.distribucion_semanal, m.updated_at
+      `SELECT u.id, u.full_name, u.cargo, m.meta_puntos, m.meta_dinero, m.valor_punto_adicional, m.distribucion_semanal, m.updated_at
        FROM users u
        LEFT JOIN metas_colaborador m ON m.colaborador_id = u.id AND m.anio = $1 AND m.mes = $2
-       WHERE u.role = 'Colaborador' AND (u.is_active OR m.id IS NOT NULL)
+       WHERE u.role IN ('Colaborador', 'Asistente') AND (u.is_active OR m.id IS NOT NULL)
        ORDER BY u.full_name`,
       [anio, mes],
     );
@@ -54,6 +54,7 @@ metasRouter.get(
       metas: rows.map((r) => ({
         colaboradorId: r.id,
         nombre: r.full_name,
+        cargo: r.cargo,
         meta: r.meta_puntos
           ? {
               metaPuntos: r.meta_puntos,

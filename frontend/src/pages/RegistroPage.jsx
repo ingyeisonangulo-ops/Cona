@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
 import { Ban, Check, CheckCircle2, History, Pencil, Plus, Search, Trash2, UserCheck } from 'lucide-react';
 import { CheckboxNote, RegistrosRecientes } from './registro/Recientes.jsx';
-import { MEDIOS_ORIGEN, todayBogota, useCatalogos } from '../components/business.jsx';
+import { MEDIOS_ORIGEN, colaboradoresPara, nombreConCargo, todayBogota, useCatalogos } from '../components/business.jsx';
 import { Alert, Button, Card, IconButton, Input, PageHeader, Select } from '../components/ui.jsx';
 import { get, post } from '../lib/api.js';
 import { formatCOP } from '../lib/format.js';
@@ -200,7 +200,16 @@ export default function RegistroPage() {
                     {items.length > 1 && <IconButton label="Quitar servicio" icon={Trash2} onClick={() => setItems((l) => l.filter((i) => i.key !== item.key))} />}
                   </div>
                   <div className="grid gap-3 md:grid-cols-3">
-                    <Select label="Servicio" required value={item.servicioId} onChange={(e) => setItem(item.key, { servicioId: e.target.value })}>
+                    <Select
+                      label="Servicio"
+                      required
+                      value={item.servicioId}
+                      onChange={(e) => {
+                        const servicioId = e.target.value;
+                        const validos = colaboradoresPara(servicioId, cat.servicios, cat.colaboradores);
+                        setItem(item.key, { servicioId, ...(!validos.some((c) => c.id === item.colaboradorId) && { colaboradorId: '' }) });
+                      }}
+                    >
                       <option value="">Seleccione…</option>
                       {cat.servicios.map((s) => (
                         <option key={s.id} value={s.id}>
@@ -210,9 +219,9 @@ export default function RegistroPage() {
                     </Select>
                     <Select label="Colaborador" required value={item.colaboradorId} onChange={(e) => setItem(item.key, { colaboradorId: e.target.value })}>
                       <option value="">Seleccione…</option>
-                      {cat.colaboradores.map((c) => (
+                      {colaboradoresPara(item.servicioId, cat.servicios, cat.colaboradores).map((c) => (
                         <option key={c.id} value={c.id}>
-                          {c.nombre}
+                          {nombreConCargo(c)}
                         </option>
                       ))}
                     </Select>

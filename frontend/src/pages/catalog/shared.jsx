@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Pencil, Plus, Power, PowerOff, Search } from 'lucide-react';
+import { Check, Pencil, Plus, Power, PowerOff, Search } from 'lucide-react';
 import { Button, ConfirmModal, IconButton } from '../../components/ui.jsx';
 import { patch } from '../../lib/api.js';
 
@@ -118,4 +118,30 @@ export function useDebounced(value, ms = 300) {
 export function qs(params) {
   const s = new URLSearchParams(Object.entries(params).filter(([, v]) => v !== '' && v != null));
   return s.toString() ? `?${s}` : '';
+}
+
+// Selección múltiple con píldoras (p. ej. cargos que realizan un servicio).
+export function ChipToggleGroup({ label, options, value, onChange }) {
+  const toggle = (o) => onChange(value.includes(o) ? value.filter((v) => v !== o) : [...value, o]);
+  return (
+    <div role="group" aria-label={label} className="flex flex-wrap gap-2">
+      {options.map((o) => {
+        const on = value.includes(o);
+        return (
+          <button
+            key={o}
+            type="button"
+            aria-pressed={on}
+            onClick={() => toggle(o)}
+            className={`touch-target inline-flex items-center gap-1.5 rounded-full border px-3.5 text-sm font-medium transition-colors ${
+              on ? 'border-primary bg-primary-soft text-primary' : 'border-line bg-surface text-muted hover:text-text'
+            }`}
+          >
+            {on && <Check className="size-4" aria-hidden />}
+            {o}
+          </button>
+        );
+      })}
+    </div>
+  );
 }

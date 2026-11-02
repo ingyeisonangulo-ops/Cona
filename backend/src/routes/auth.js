@@ -33,6 +33,7 @@ export function toProfile(u) {
     email: u.email,
     fullName: u.full_name ?? u.fullName,
     role: u.role,
+    cargo: u.cargo ?? null,
     mustChangePassword: u.must_change_password ?? u.mustChangePassword,
     permissions: permissionsFor(u.role),
   };

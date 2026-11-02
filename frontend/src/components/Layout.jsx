@@ -32,7 +32,7 @@ const SECTIONS = [
     label: null,
     items: [
       { to: '/', label: 'Inicio', icon: LayoutDashboard, perms: null },
-      { to: '/mi-progreso', label: 'Mi progreso', icon: Trophy, perms: ['VIEW_PERSONAL_PROGRESS'], hideIf: ['MANAGE_APPOINTMENTS', 'VIEW_DASHBOARD_FINANCE'] },
+      { to: '/mi-progreso', label: 'Mi progreso', icon: Trophy, perms: ['VIEW_PERSONAL_PROGRESS'], hideIf: ['VIEW_DASHBOARD_FINANCE'] },
     ],
   },
   {
@@ -154,7 +154,9 @@ function NavItems({ sections, onNavigate, counters, rail }) {
 // Barra inferior (móvil y tableta): 3 destinos frecuentes + "Menú" con el resto.
 function BottomBar({ sections, counters, onMenu }) {
   let items = sections.flatMap((s) => s.items);
-  if (items.some((n) => n.to === '/mi-progreso')) items = items.filter((n) => n.to !== '/');
+  // Para el Colaborador, Inicio ya es Mi progreso: no se repite.
+  const { can } = useAuth();
+  if (!can('MANAGE_APPOINTMENTS', 'REGISTER_SERVICES', 'CLOSE_ABSENCES')) items = items.filter((n) => n.to !== '/');
   items = items.slice(0, 3);
   if (items.length < 3) items.push(PERFIL);
   return (
@@ -247,7 +249,7 @@ export default function Layout() {
               <Avatar name={user.fullName} />
               <span className="min-w-0">
                 <span className="block truncate text-sm font-semibold text-text">{user.fullName}</span>
-                <span className="block truncate text-xs text-muted">{user.role}</span>
+                <span className="block truncate text-xs text-muted">{user.role === 'Colaborador' && user.cargo ? user.cargo : user.role}</span>
               </span>
             </Link>
             <IconButton label="Cerrar sesión" icon={LogOut} onClick={handleLogout} disabled={leaving} className="hover:bg-secondary-soft hover:text-secondary" />
@@ -301,7 +303,7 @@ export default function Layout() {
               <Avatar name={user.fullName} />
               <span className="hidden text-left md:block">
                 <span className="block text-sm font-semibold leading-tight text-text">{user.fullName}</span>
-                <span className="block text-xs text-muted">{user.role}</span>
+                <span className="block text-xs text-muted">{user.role === 'Colaborador' && user.cargo ? user.cargo : user.role}</span>
               </span>
             </Link>
           </div>

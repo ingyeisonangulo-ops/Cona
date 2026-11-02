@@ -174,3 +174,13 @@ Cada módulo incluye **caminos felices** (✅) y **rutas de fallo** (⛔), que d
 - [ ] Al cerrar sesión se borran los datos de API cacheados (Herramientas → Aplicación → Cache Storage: `api-data` desaparece).
 - [ ] Probar anchos 360, 768, 1024 y 1440 px: menú lateral fijo en escritorio y desplegable en móvil; botones de al menos 44 px; en iPhone el contenido respeta la muesca (safe area).
 - [ ] Colores: azul #1E65D6 primario, rojo #D90429 para acciones destructivas y alertas, tarjetas KPI con ícono circular azul.
+
+## 13. Cargos del personal clínico
+
+- [ ] Como Gerente, **Usuarios → Nuevo usuario**: el selector **Rol** ofrece Odontólogo, Higienista, Auxiliar y Especialista (colaboradores), además de Asistente y Gerente. Super Admin solo aparece para un Super Admin.
+- [ ] La lista de usuarios muestra el cargo de cada colaborador (p. ej. «Higienista» con «Colaborador» debajo).
+- [ ] Cambiar el cargo de un colaborador no cierra sus sesiones; cambiar el rol sí.
+- [ ] **Servicios y convenios → Servicios → Editar**: «Cargos que realizan el servicio» exige al menos uno; la lista muestra los cargos bajo el nombre del servicio.
+- [ ] **Registrar servicios** y **Nueva cita**: al elegir un servicio, el selector de colaborador muestra solo a quienes tienen un cargo que lo realiza (nombre · cargo). Si el colaborador elegido no aplica, se limpia.
+- [ ] La Asistente aparece como colaboradora (registro, metas, desempeño del tablero) y tiene **Mi progreso** en el menú.
+- [ ] Como Colaborador, el catálogo muestra solo los servicios de su cargo.

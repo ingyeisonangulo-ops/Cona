@@ -5,6 +5,7 @@ import { badRequest, requireFound } from '../lib/errors.js';
 import { parse, txRoute } from '../lib/txRoute.js';
 import { requirePermission } from '../middleware/authorize.js';
 import { hasPermission } from '../lib/permissions.js';
+import { CARGOS } from '../lib/cargos.js';
 
 // Lectura: cualquier rol con acceso a servicios. Escritura: MANAGE_SERVICES
 // (Super Admin y Gerente según matrix.json; RLS lo refuerza con app_is_admin()).
@@ -144,6 +145,12 @@ const servicioSchema = z.object({
   valorPublico: money,
   costoClinica: money,
   puntos: z.coerce.number().int('Debe ser entero').min(0).max(1_000_000),
+  // Cargos que realizan el servicio (si se omite: todos al crear, sin cambios al editar).
+  cargos: z
+    .array(z.enum(CARGOS, { message: 'Cargo inválido' }))
+    .min(1, 'Seleccione al menos un cargo que realice el servicio')
+    .transform((v) => [...new Set(v)])
+    .optional(),
 });
 const servicioListQuery = listQuery.extend({ categoriaId: z.uuid().optional() });
 
@@ -158,6 +165,7 @@ const mapServicio = (r) => ({
   valorPublico: toNumber(r.valor_publico),
   costoClinica: toNumber(r.costo_clinica),
   puntos: r.puntos,
+  cargos: r.cargos,
   status: r.status,
   createdAt: r.created_at,
   updatedAt: r.updated_at,
@@ -182,8 +190,10 @@ serviciosRouter.get(
        WHERE ($1 = 'all' OR s.status = $1)
          AND ($2::text IS NULL OR s.nombre ILIKE '%' || $2 || '%')
          AND ($3::uuid IS NULL OR s.categoria_id = $3)
+         AND ($4::text IS NULL OR $4 = ANY (s.cargos))
        ORDER BY c.nombre, s.nombre`,
-      [status, q || null, categoriaId ?? null],
+      // VIEW_ROLE_SERVICES: el Colaborador solo ve los servicios de su cargo.
+      [status, q || null, categoriaId ?? null, canSeeMoney(req.user) ? null : (req.user.cargo ?? '')],
     );
     return { servicios: rows.map((r) => servicioFor(req.user, mapServicio(r))) };
   }),
@@ -192,7 +202,12 @@ serviciosRouter.get(
 serviciosRouter.get(
   '/:id',
   canRead,
-  txRoute(async (req) => ({ servicio: servicioFor(req.user, mapServicio(requireFound(await findServicio(parse(idParam, req.params).id)))) })),
+  txRoute(async (req) => {
+    const s = mapServicio(requireFound(await findServicio(parse(idParam, req.params).id)));
+    // Un servicio de otro cargo no existe para el Colaborador (404).
+    if (!canSeeMoney(req.user) && !s.cargos.includes(req.user.cargo)) requireFound(null);
+    return { servicio: servicioFor(req.user, s) };
+  }),
 );
 
 serviciosRouter.post(
@@ -203,9 +218,9 @@ serviciosRouter.post(
       const d = parse(servicioSchema, req.body ?? {});
       await requireActiveCategoria(d.categoriaId);
       const { rows } = await db.query(
-        `INSERT INTO servicios (organization_id, categoria_id, nombre, valor_publico, costo_clinica, puntos)
-         VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
-        [req.user.organizationId, d.categoriaId, d.nombre, d.valorPublico, d.costoClinica, d.puntos],
+        `INSERT INTO servicios (organization_id, categoria_id, nombre, valor_publico, costo_clinica, puntos, cargos)
+         VALUES ($1, $2, $3, $4, $5, $6, coalesce($7::text[], $8::text[])) RETURNING id`,
+        [req.user.organizationId, d.categoriaId, d.nombre, d.valorPublico, d.costoClinica, d.puntos, d.cargos ?? null, CARGOS],
       );
       res.locals.status = 201;
       res.locals.audit = { entityId: rows[0].id, metadata: d };
@@ -225,12 +240,13 @@ serviciosRouter.put(
       const prev = mapServicio(requireFound(await findServicio(id)));
       if (d.categoriaId !== prev.categoriaId) await requireActiveCategoria(d.categoriaId);
       await db.query(
-        `UPDATE servicios SET categoria_id = $1, nombre = $2, valor_publico = $3, costo_clinica = $4, puntos = $5
-         WHERE id = $6`,
-        [d.categoriaId, d.nombre, d.valorPublico, d.costoClinica, d.puntos, id],
+        `UPDATE servicios SET categoria_id = $1, nombre = $2, valor_publico = $3, costo_clinica = $4, puntos = $5,
+           cargos = coalesce($6::text[], cargos)
+         WHERE id = $7`,
+        [d.categoriaId, d.nombre, d.valorPublico, d.costoClinica, d.puntos, d.cargos ?? null, id],
       );
-      const { categoriaId, nombre, valorPublico, costoClinica, puntos } = prev;
-      res.locals.audit = { metadata: { before: { categoriaId, nombre, valorPublico, costoClinica, puntos }, after: d } };
+      const { categoriaId, nombre, valorPublico, costoClinica, puntos, cargos } = prev;
+      res.locals.audit = { metadata: { before: { categoriaId, nombre, valorPublico, costoClinica, puntos, cargos }, after: d } };
       return { servicio: mapServicio(await findServicio(id)) };
     },
     { audit: 'SERVICIO_UPDATED', entityType: 'servicio' },

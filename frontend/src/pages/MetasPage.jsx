@@ -204,7 +204,10 @@ export default function MetasPage() {
             <tbody>
               {rows.map((r) => (
                 <tr key={r.colaboradorId} className="hover:bg-bg/60">
-                  <td className={`${td} font-semibold`}>{r.nombre}</td>
+                  <td className={td}>
+                    <p className="font-semibold">{r.nombre}</p>
+                    {r.cargo && <p className="text-xs text-muted">{r.cargo}</p>}
+                  </td>
                   {r.meta ? (
                     <>
                       <td className={`${td} text-right font-bold text-primary`}>{formatNumber(r.meta.metaPuntos)}</td>

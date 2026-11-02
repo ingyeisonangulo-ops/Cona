@@ -23,8 +23,9 @@ try {
   const sa = await Client.as(EMAILS.superAdmin, PASSWORDS.superAdmin);
 
   let r = await asi.req('GET', '/colaboradores');
-  const colaboradorId = r.data.colaboradores[0].id;
+  const colaboradorId = r.data.colaboradores.find((c) => c.cargo === 'Odontólogo')?.id;
   ok(r.status === 200 && colaboradorId, 'asistente lista colaboradores');
+  ok(r.data.colaboradores.some((c) => c.cargo === 'Asistente'), 'la Asistente también aparece como colaboradora');
 
   const servicios = (await ger.req('GET', '/servicios?status=active')).data.servicios;
   const consulta = servicios.find((s) => s.nombre === 'Consulta de valoración'); // 60.000 / 10 pts, Odontología General
@@ -267,6 +268,32 @@ try {
   ok(r.data.kpis.ingresoTotal === 120000, 'servicio anulado sale de las métricas');
   r = await sa.req('GET', '/audit-logs?action=ATENCION_REGISTERED');
   ok(r.data.logs.length >= 2, 'auditoría de atenciones registradas');
+
+  // ----------------------------------------------------- Cargos (migración 008)
+  r = await ger.req('POST', '/users', { email: 'higienista@clinica.test', fullName: 'Higienista Nueva', role: 'Colaborador', password: 'TemporalSegura1' });
+  ok(r.status === 400 && r.data.error.code === 'CARGO_REQUIRED', 'colaborador nuevo exige cargo');
+  r = await ger.req('POST', '/users', { email: 'higienista@clinica.test', fullName: 'Higienista Nueva', role: 'Colaborador', cargo: 'Higienista', password: 'TemporalSegura1' });
+  ok(r.status === 201 && r.data.user.cargo === 'Higienista', 'crear colaborador con cargo Higienista');
+  const higienistaId = r.data.user.id;
+  r = await ger.req('PATCH', `/users/${higienistaId}`, { cargo: 'Auxiliar' });
+  ok(r.status === 200 && r.data.user.cargo === 'Auxiliar' && r.data.user.role === 'Colaborador', 'cambiar cargo sin cambiar rol');
+  r = await ger.req('POST', '/users', { email: 'gerente2@clinica.test', fullName: 'Gerente Dos', role: 'Gerente', cargo: 'Odontólogo', password: 'TemporalSegura1' });
+  ok(r.status === 201 && r.data.user.cargo === null, 'Gerente queda sin cargo aunque se envíe uno');
+
+  r = await ger.req('POST', '/servicios', { categoriaId: consulta.categoriaId, nombre: 'Sellantes', valorPublico: 50000, costoClinica: 10000, puntos: 5, cargos: ['Auxiliar', 'Asistente'] });
+  ok(r.status === 201 && r.data.servicio.cargos.join() === 'Auxiliar,Asistente', 'servicio con cargos que lo realizan');
+  const sellantes = r.data.servicio;
+  r = await asi.req('POST', '/atenciones', { cedula: '1061234567', items: [{ servicioId: sellantes.id, colaboradorId }] });
+  ok(r.status === 400 && /no realiza este servicio/.test(r.data.error.message), 'Odontólogo no puede registrar un servicio de otro cargo', JSON.stringify(r.data));
+  const asistenteId = (await asi.req('GET', '/auth/me')).data.user.id;
+  r = await asi.req('POST', '/atenciones', { cedula: '1061234567', items: [{ servicioId: sellantes.id, colaboradorId: asistenteId }] });
+  ok(r.status === 201, 'la Asistente registra un servicio de su cargo a su nombre');
+  r = await col.req('GET', '/servicios');
+  ok(r.status === 200 && !r.data.servicios.some((s) => s.id === sellantes.id) && r.data.servicios.length > 0, 'el Colaborador solo ve los servicios de su cargo');
+  r = await col.req('GET', `/servicios/${sellantes.id}`);
+  ok(r.status === 404, 'servicio de otro cargo → 404 para el Colaborador');
+  r = await asi.req('GET', '/mi-progreso');
+  ok(r.status === 200 && r.data.puntos.total >= 5, 'Mi progreso de la Asistente cuenta sus servicios');
 } catch (err) {
   console.error(err);
   crashed = true;

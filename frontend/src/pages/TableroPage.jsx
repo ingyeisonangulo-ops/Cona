@@ -154,7 +154,7 @@ export default function TableroPage() {
                           <div className="min-w-0">
                             <p className="truncate font-medium">{c.nombre}</p>
                             <p className="text-xs text-muted">
-                              {c.servicios} servicios{c.bonoRecurrencia ? ` · +${c.bonoRecurrencia} bono` : ''}
+                              {c.cargo ? `${c.cargo} · ` : ''}{c.servicios} servicios{c.bonoRecurrencia ? ` · +${c.bonoRecurrencia} bono` : ''}
                             </p>
                           </div>
                         </div>

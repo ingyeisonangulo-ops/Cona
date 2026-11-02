@@ -7,8 +7,10 @@ import {
   MEDIOS_ORIGEN,
   SlotPicker,
   addDays,
+  colaboradoresPara,
   formatFecha,
   formatFechaLarga,
+  nombreConCargo,
   todayBogota,
   useCatalogos,
 } from '../components/business.jsx';
@@ -150,7 +152,15 @@ function NuevaCitaModal({ fecha, onClose, onSaved }) {
           </div>
         )}
         <div className="grid gap-3 md:grid-cols-2">
-          <Select label="Servicio (opcional)" value={form.servicioId} onChange={(e) => setForm({ ...form, servicioId: e.target.value })}>
+          <Select
+            label="Servicio (opcional)"
+            value={form.servicioId}
+            onChange={(e) => {
+              const servicioId = e.target.value;
+              const validos = colaboradoresPara(servicioId, cat.servicios, cat.colaboradores);
+              setForm({ servicioId, colaboradorId: validos.some((c) => c.id === form.colaboradorId) ? form.colaboradorId : '' });
+            }}
+          >
             <option value="">—</option>
             {cat.servicios.map((s) => (
               <option key={s.id} value={s.id}>
@@ -160,9 +170,9 @@ function NuevaCitaModal({ fecha, onClose, onSaved }) {
           </Select>
           <Select label="Colaborador (opcional)" value={form.colaboradorId} onChange={(e) => setForm({ ...form, colaboradorId: e.target.value })}>
             <option value="">—</option>
-            {cat.colaboradores.map((c) => (
+            {colaboradoresPara(form.servicioId, cat.servicios, cat.colaboradores).map((c) => (
               <option key={c.id} value={c.id}>
-                {c.nombre}
+                {nombreConCargo(c)}
               </option>
             ))}
           </Select>

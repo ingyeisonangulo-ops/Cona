@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { PenLine } from 'lucide-react';
-import { addDays, formatFecha, todayBogota, useCatalogos } from '../../components/business.jsx';
+import { addDays, colaboradoresPara, formatFecha, nombreConCargo, todayBogota, useCatalogos } from '../../components/business.jsx';
 import { Alert, Badge, Button, Card, EmptyState, IconButton, Input, Modal, Select, Spinner, TableWrap, td, th } from '../../components/ui.jsx';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { patch, put } from '../../lib/api.js';
@@ -73,10 +73,11 @@ function EditModal({ sr, onClose, onSaved }) {
             </option>
           ))}
         </Select>
-        <Select label="Colaborador" value={form.colaboradorId} onChange={set('colaboradorId')}>
-          {cat.colaboradores.map((c) => (
+        <Select label="Colaborador" required value={form.colaboradorId} onChange={set('colaboradorId')}>
+          <option value="">Seleccione…</option>
+          {colaboradoresPara(form.servicioId, cat.servicios, cat.colaboradores).map((c) => (
             <option key={c.id} value={c.id}>
-              {c.nombre}
+              {nombreConCargo(c)}
             </option>
           ))}
         </Select>

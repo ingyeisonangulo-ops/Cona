@@ -4,9 +4,10 @@ import { Alert, Badge, Button, Card, EmptyState, Input, Modal, Segmented, Select
 import { post, put } from '../../lib/api.js';
 import { formatCOP, formatNumber } from '../../lib/format.js';
 import { useResource } from '../../lib/useResource.js';
-import { RowActions, Toolbar, qs, useDebounced, useStatusToggle } from './shared.jsx';
+import { CARGOS } from '../../lib/cargos.js';
+import { ChipToggleGroup, RowActions, Toolbar, qs, useDebounced, useStatusToggle } from './shared.jsx';
 
-const EMPTY = { categoriaId: '', nombre: '', valorPublico: '', costoClinica: '', puntos: '0' };
+const EMPTY = { categoriaId: '', nombre: '', valorPublico: '', costoClinica: '', puntos: '0', cargos: [] };
 
 // Se monta solo mientras está abierto: el estado inicial sale de `initial`.
 function ServicioModal({ initial, categorias, onClose, onSaved }) {
@@ -18,6 +19,7 @@ function ServicioModal({ initial, categorias, onClose, onSaved }) {
           valorPublico: String(initial.valorPublico),
           costoClinica: String(initial.costoClinica),
           puntos: String(initial.puntos),
+          cargos: initial.cargos ?? [],
         }
       : EMPTY,
   );
@@ -29,9 +31,11 @@ function ServicioModal({ initial, categorias, onClose, onSaved }) {
 
   async function onSubmit(e) {
     e.preventDefault();
+    if (form.cargos.length === 0) return setError('Seleccione al menos un cargo que realice el servicio.');
     setSaving(true);
     setError('');
     const body = {
+      cargos: form.cargos,
       categoriaId: form.categoriaId,
       nombre: form.nombre,
       valorPublico: Number(form.valorPublico),
@@ -88,6 +92,11 @@ function ServicioModal({ initial, categorias, onClose, onSaved }) {
           <span className="text-xs font-medium text-brand-dark/80">Margen estimado</span>
           <span className={`text-lg font-bold ${margin < 0 ? 'text-secondary' : 'text-brand-dark'}`}>{formatCOP(margin)}</span>
         </div>
+        <fieldset className="rounded-2xl border border-line p-4 md:col-span-2">
+          <legend className="px-1 text-sm font-semibold">Cargos que realizan el servicio</legend>
+          <p className="mb-3 text-xs text-muted">Solo el personal con estos cargos podrá registrarlo o tenerlo agendado, y el colaborador lo verá en su catálogo.</p>
+          <ChipToggleGroup label="Cargos que realizan el servicio" options={CARGOS} value={form.cargos} onChange={(cargos) => setForm((f) => ({ ...f, cargos }))} />
+        </fieldset>
       </form>
     </Modal>
   );
@@ -155,7 +164,14 @@ export default function ServiciosTab({ canWrite, showMoney }) {
             <tbody>
               {list.map((s) => (
                 <tr key={s.id} className="hover:bg-subtle/60">
-                  <td className={`${td} font-semibold`}>{s.nombre}</td>
+                  <td className={td}>
+                    <p className="font-semibold">{s.nombre}</p>
+                    {s.cargos && (
+                      <p className="mt-0.5 truncate text-xs text-muted" title={s.cargos.join(', ')}>
+                        {s.cargos.length === CARGOS.length ? 'Todos los cargos' : s.cargos.join(' · ')}
+                      </p>
+                    )}
+                  </td>
                   <td className={td}>
                     <Badge tone="muted">{s.categoriaNombre}</Badge>
                   </td>

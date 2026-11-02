@@ -74,9 +74,9 @@ const APELLIDOS = ['Riascos', 'Valencia', 'Caicedo', 'Mosquera', 'Angulo', 'Cast
 const MEDIOS = [['Redes Sociales', 45], ['Referido', 30], ['Televisión', 10], ['Otro', 15]];
 
 const COLABORADORES_EXTRA = [
-  ['lucia.ruiz', 'Dra. Lucía Ruiz Valencia'],
-  ['andres.mena', 'Dr. Andrés Mena Caicedo'],
-  ['yesenia.caicedo', 'Yesenia Caicedo (Higienista)'],
+  ['lucia.ruiz', 'Dra. Lucía Ruiz Valencia', 'Especialista'],
+  ['andres.mena', 'Dr. Andrés Mena Caicedo', 'Odontólogo'],
+  ['yesenia.caicedo', 'Yesenia Caicedo', 'Higienista'],
 ];
 
 const CATALOGO_EXTRA = {
@@ -135,11 +135,13 @@ try {
 
   // Colaboradores
   const passwordHash = await hashPassword(devPassword);
-  for (const [local, nombre] of COLABORADORES_EXTRA) {
+  // Los servicios de la demo conservan todos los cargos (valor por defecto), así
+  // cualquier colaborador puede atender las visitas generadas al azar.
+  for (const [local, nombre, cargo] of COLABORADORES_EXTRA) {
     await q(
-      `INSERT INTO users (organization_id, email, full_name, role, password_hash)
-       VALUES ($1, $2, $3, 'Colaborador', $4) ON CONFLICT (email) DO NOTHING`,
-      [org, `${local}@${domain}`, nombre, passwordHash],
+      `INSERT INTO users (organization_id, email, full_name, role, cargo, password_hash)
+       VALUES ($1, $2, $3, 'Colaborador', $4, $5) ON CONFLICT (email) DO NOTHING`,
+      [org, `${local}@${domain}`, nombre, cargo, passwordHash],
     );
   }
   const colaboradores = (await q("SELECT id, full_name FROM users WHERE organization_id = $1 AND role = 'Colaborador' AND is_active ORDER BY created_at", [org])).rows;
