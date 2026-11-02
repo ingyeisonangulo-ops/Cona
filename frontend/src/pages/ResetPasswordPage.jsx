@@ -54,7 +54,7 @@ export default function ResetPasswordPage() {
       ) : done ? (
         <div className="mt-6 flex flex-col gap-4">
           <Alert tone="success">Contraseña actualizada. Todas las sesiones anteriores se cerraron.</Alert>
-          <Link to="/login" className="touch-target inline-flex items-center justify-center rounded-xl bg-primary px-4 text-sm font-semibold text-white hover:bg-primary-hover">
+          <Link to="/login" className="touch-target inline-flex items-center justify-center rounded-xl bg-primary px-4 text-sm font-semibold text-on-primary hover:bg-primary-hover">
             Ir a iniciar sesión
           </Link>
         </div>

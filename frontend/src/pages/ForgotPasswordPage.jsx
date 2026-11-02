@@ -38,7 +38,7 @@ export default function ForgotPasswordPage() {
         <Button type="submit" loading={loading} icon={Send} disabled={!email || Boolean(message)}>
           Enviar solicitud
         </Button>
-        <Link to="/login" className="touch-target inline-flex items-center justify-center gap-2 text-sm font-semibold text-primary">
+        <Link to="/login" className="touch-target inline-flex items-center justify-center gap-2 text-sm font-semibold text-white underline-offset-4 hover:underline">
           <ArrowLeft className="size-4" aria-hidden /> Volver al inicio de sesión
         </Link>
       </form>

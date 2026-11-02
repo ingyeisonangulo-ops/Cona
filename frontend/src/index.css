@@ -17,6 +17,7 @@
   /* Marca */
   --color-primary: #1e65d6;
   --color-primary-hover: #1550b0;
+  --color-on-primary: #ffffff;
   --color-primary-soft: #eef4ff;
   --color-primary-line: #c7d9fb;
   --color-secondary: #d90429;
@@ -102,6 +103,25 @@
   .touch-target { min-height: 44px; min-width: 44px; }
   .scrollbar-none { scrollbar-width: none; }
   .scrollbar-none::-webkit-scrollbar { display: none; }
+}
+
+/* Panel azul del login: los mismos componentes con tokens invertidos
+   (texto blanco, botón principal blanco con texto azul, campos blancos). */
+.auth-panel {
+  --color-text: #ffffff;
+  --color-muted: rgb(255 255 255 / 0.82);
+  --color-subtle: #ffffff;
+  --color-line: transparent;
+  --color-primary: #ffffff;
+  --color-primary-hover: #eef4ff;
+  --color-on-primary: #1e65d6;
+  --color-secondary: #ffd5db;
+}
+.auth-panel :is(input, select, textarea, [role="alert"], [role="status"]) {
+  --color-text: #0b1220;
+  --color-muted: #667085;
+  --color-primary: #1e65d6;
+  --color-secondary: #d90429;
 }
 
 @media (prefers-reduced-motion: reduce) {

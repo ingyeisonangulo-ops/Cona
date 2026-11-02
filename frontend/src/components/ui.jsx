@@ -5,7 +5,7 @@ export const cx = (...c) => c.filter(Boolean).join(' ');
 
 // ---------------------------------------------------------------- Botones
 const BUTTON_VARIANTS = {
-  primary: 'bg-primary text-white hover:bg-primary-hover',
+  primary: 'bg-primary text-on-primary hover:bg-primary-hover',
   dark: 'bg-ink text-white hover:bg-ink/85',
   dashed: 'border border-dashed border-primary-line bg-primary-soft/50 text-primary hover:bg-primary-soft',
   secondary: 'bg-secondary text-white shadow-sm hover:brightness-95',
