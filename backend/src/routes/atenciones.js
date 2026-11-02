@@ -6,6 +6,7 @@ import { parse, txRoute } from '../lib/txRoute.js';
 import { requirePermission } from '../middleware/authorize.js';
 import { valorConDescuento } from '../services/metrics.js';
 import { cedulaField, findPacienteByCedula, insertPaciente, mapPaciente, pacienteDatosSchema } from './pacientes.js';
+import { canSeeCost } from './catalog.js';
 
 // Registro de servicios realizados (atenciones).
 export const atencionesRouter = Router();
@@ -100,6 +101,12 @@ const mapSR = (r) => ({
   createdAt: r.created_at,
   updatedAt: r.updated_at,
 });
+// Respuesta según el rol: sin costo para la clínica si no administra el catálogo.
+const srFor = (user) => (r) => {
+  const s = mapSR(r);
+  if (!canSeeCost(user)) delete s.costoAplicado;
+  return s;
+};
 
 const findSR = async (id) => (await db.query(`${SR_SELECT} WHERE sr.id = $1`, [id])).rows[0];
 
@@ -152,7 +159,7 @@ atencionesRouter.post(
         metadata: { pacienteNuevo: nuevo, serviciosRealizados: ids, valoresManuales: data.items.filter((i) => i.otros).length },
       };
       const registrados = await db.query(`${SR_SELECT} WHERE sr.id = ANY($1::uuid[])`, [ids]);
-      return { pacienteNuevo: nuevo, paciente: mapPaciente(paciente), servicios: registrados.rows.map(mapSR) };
+      return { pacienteNuevo: nuevo, paciente: mapPaciente(paciente), servicios: registrados.rows.map(srFor(req.user)) };
     },
     { audit: 'ATENCION_REGISTERED', entityType: 'paciente' },
   ),
@@ -181,7 +188,7 @@ serviciosRealizadosRouter.get(
        LIMIT 300`,
       [q.desde ?? null, q.hasta ?? null, q.colaboradorId ?? null, q.estado],
     );
-    return { servicios: rows.map(mapSR) };
+    return { servicios: rows.map(srFor(req.user)) };
   }),
 );
 
@@ -236,7 +243,7 @@ serviciosRealizadosRouter.put(
       );
       const { servicioId, colaboradorId, convenioId, fecha, valorCobrado } = prev;
       res.locals.audit = { metadata: { before: { servicioId, colaboradorId, convenioId, fecha, valorCobrado }, after: { ...data, valorCobrado: v.valorCobrado } } };
-      return { servicio: mapSR(await findSR(id)) };
+      return { servicio: srFor(req.user)(await findSR(id)) };
     },
     { audit: 'SERVICIO_REALIZADO_UPDATED', entityType: 'servicio_realizado' },
   ),
@@ -254,7 +261,7 @@ serviciosRealizadosRouter.patch(
       if (prev.estado === 'anulado') throw badRequest('El servicio ya está anulado');
       await db.query("UPDATE servicios_realizados SET estado = 'anulado', motivo_anulacion = $1 WHERE id = $2", [motivo, id]);
       res.locals.audit = { metadata: { motivo, valorCobrado: Number(prev.valor_cobrado) } };
-      return { servicio: mapSR(await findSR(id)) };
+      return { servicio: srFor(req.user)(await findSR(id)) };
     },
     { audit: 'SERVICIO_REALIZADO_ANULADO', entityType: 'servicio_realizado' },
   ),

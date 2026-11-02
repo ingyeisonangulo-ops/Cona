@@ -39,9 +39,9 @@ export function Toolbar({ q, setQ, status, setStatus, onCreate, createLabel, pla
 }
 
 // Acciones de una fila del catálogo: editar y activar/desactivar.
-export function RowActions({ item, onEdit, onToggle }) {
+export function RowActions({ item, onEdit, onToggle, centered = false }) {
   return (
-    <div className="flex justify-end gap-1">
+    <div className={`flex gap-1 ${centered ? 'justify-center' : 'justify-end'}`}>
       <IconButton label="Editar" icon={Pencil} onClick={onEdit} className="hover:bg-primary-soft hover:text-primary" />
       <StatusToggleButton item={item} onClick={onToggle} />
     </div>

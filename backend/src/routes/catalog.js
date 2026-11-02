@@ -14,10 +14,13 @@ const canWrite = requirePermission('MANAGE_SERVICES');
 // Colaborador ve el catálogo sin valores monetarios.
 const canReadConvenios = requirePermission('MANAGE_SERVICES', 'REGISTER_SERVICES');
 const canSeeMoney = (user) => hasPermission(user.role, 'MANAGE_SERVICES') || hasPermission(user.role, 'REGISTER_SERVICES');
+// El costo para la clínica solo lo ve quien administra el catálogo (Super Admin y
+// Gerente). La Asistente ve el valor al público, no el costo ni el margen.
+export const canSeeCost = (user) => hasPermission(user.role, 'MANAGE_SERVICES');
 function servicioFor(user, s) {
-  if (canSeeMoney(user)) return s;
-  const { valorPublico: _v, costoClinica: _c, ...rest } = s;
-  return rest;
+  if (canSeeCost(user)) return s;
+  const { valorPublico, costoClinica: _c, ...rest } = s;
+  return canSeeMoney(user) ? { ...rest, valorPublico } : rest;
 }
 
 const idParam = z.object({ id: z.uuid('Identificador inválido') });

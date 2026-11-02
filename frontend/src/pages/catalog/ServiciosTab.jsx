@@ -140,16 +140,16 @@ export default function ServiciosTab({ canWrite, showMoney }) {
         </Card>
       ) : (
         <Card flush>
-          <TableWrap>
+          <TableWrap fixed minWidth="min-w-[760px]">
             <thead>
               <tr>
-                <th className={th}>Servicio</th>
-                <th className={th}>Categoría</th>
-                {showMoney && <th className={`${th} text-right`}>Valor público</th>}
-                {showMoney && <th className={`${th} text-right`}>Costo clínica</th>}
-                <th className={`${th} text-right`}>Puntos</th>
-                <th className={th}>Estado</th>
-                {canWrite && <th className={`${th} text-right`}>Acciones</th>}
+                <th className={`${th} w-[28%]`}>Servicio</th>
+                <th className={`${th} w-[20%]`}>Categoría</th>
+                {showMoney && <th className={`${th} text-center`}>Valor público</th>}
+                {canWrite && <th className={`${th} text-center`}>Costo clínica</th>}
+                <th className={`${th} text-center`}>Puntos</th>
+                <th className={`${th} text-center`}>Estado</th>
+                {canWrite && <th className={`${th} w-28 text-center`}>Acciones</th>}
               </tr>
             </thead>
             <tbody>
@@ -159,15 +159,15 @@ export default function ServiciosTab({ canWrite, showMoney }) {
                   <td className={td}>
                     <Badge tone="muted">{s.categoriaNombre}</Badge>
                   </td>
-                  {showMoney && <td className={`${td} tabular text-right font-semibold`}>{formatCOP(s.valorPublico)}</td>}
-                  {showMoney && <td className={`${td} tabular text-right text-muted`}>{formatCOP(s.costoClinica)}</td>}
-                  <td className={`${td} tabular text-right`}>{formatNumber(s.puntos)}</td>
-                  <td className={td}>
+                  {showMoney && <td className={`${td} tabular text-center font-semibold`}>{formatCOP(s.valorPublico)}</td>}
+                  {canWrite && <td className={`${td} tabular text-center text-muted`}>{formatCOP(s.costoClinica)}</td>}
+                  <td className={`${td} tabular text-center`}>{formatNumber(s.puntos)}</td>
+                  <td className={`${td} text-center`}>
                     <StatusBadge status={s.status} />
                   </td>
                   {canWrite && (
                     <td className={td}>
-                      <RowActions onEdit={() => setEditing(s)} item={s} onToggle={() => toggle.ask(s)} />
+                      <RowActions centered onEdit={() => setEditing(s)} item={s} onToggle={() => toggle.ask(s)} />
                     </td>
                   )}
                 </tr>

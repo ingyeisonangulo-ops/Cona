@@ -62,7 +62,9 @@ try {
   ok(r.status === 201 && r.data.pacienteNuevo, 'registrar atención con paciente nuevo', JSON.stringify(r.data));
   const [srConsulta, srResina] = r.data.servicios.sort((a, b) => a.puntos - b.puntos);
   ok(srConsulta.valorCobrado === 54000 && srConsulta.descuentoPct === 10, 'descuento de convenio aplicado (60.000 − 10%)');
-  ok(srResina.valorCobrado === 99000 && srResina.valorManual && srResina.costoAplicado === 45000, '"Otros": valor manual, costo del catálogo');
+  ok(srResina.valorCobrado === 99000 && srResina.valorManual && srResina.costoAplicado === undefined, '"Otros": valor manual (sin costo en la respuesta de la Asistente)');
+  const srResinaGer = (await ger.req('GET', '/servicios-realizados?estado=all')).data.servicios.find((s) => s.id === srResina.id);
+  ok(srResinaGer?.costoAplicado === 45000, '"Otros": costo del catálogo (visto por Gerente)');
   ok(srConsulta.registradoPor === 'Asistente de Pruebas', 'usuario de registro estampado');
   const pacienteId = r.data.paciente.id;
 
@@ -221,6 +223,12 @@ try {
 
   r = await col.req('GET', '/servicios');
   ok(r.status === 200 && r.data.servicios.every((s) => s.valorPublico === undefined && s.costoClinica === undefined), 'catálogo sin cifras en dinero para Colaborador');
+  r = await asi.req('GET', '/servicios');
+  ok(r.status === 200 && r.data.servicios.length > 0 && r.data.servicios.every((s) => s.valorPublico > 0 && s.costoClinica === undefined), 'Asistente ve valor al público pero no el costo de la clínica');
+  r = await asi.req('GET', '/servicios-realizados?estado=all');
+  ok(r.status === 200 && r.data.servicios.length > 0 && r.data.servicios.every((s) => s.costoAplicado === undefined), 'servicios realizados sin costo para Asistente');
+  r = await ger.req('GET', '/servicios');
+  ok(r.status === 200 && r.data.servicios.every((s) => typeof s.costoClinica === 'number'), 'Gerente ve el costo de la clínica');
   for (const [path, label] of [
     ['/tablero', 'tablero gerencial'],
     ['/pacientes?q=Ana', 'búsqueda de pacientes'],

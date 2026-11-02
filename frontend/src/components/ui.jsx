@@ -320,10 +320,11 @@ export function EmptyState({ icon: Icon, title, children }) {
 // ---------------------------------------------------------------- Tablas
 // Encabezado en "píldora" gris claro y filas separadas por líneas finas.
 // El scroll horizontal queda contenido en la tarjeta (móvil).
-export function TableWrap({ children }) {
+// fixed: anchos de columna estables (los <th> definen su ancho; el resto se reparte por igual).
+export function TableWrap({ children, fixed = false, minWidth = 'min-w-[640px]' }) {
   return (
     <div className="overflow-x-auto overscroll-x-contain p-2">
-      <table className="w-full min-w-[640px] border-separate border-spacing-0 text-left text-sm">{children}</table>
+      <table className={cx('w-full border-separate border-spacing-0 text-left text-sm', minWidth, fixed && 'table-fixed')}>{children}</table>
     </div>
   );
 }

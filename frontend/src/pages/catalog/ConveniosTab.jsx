@@ -167,15 +167,15 @@ export default function ConveniosTab({ canWrite }) {
         </Card>
       ) : (
         <Card flush>
-          <TableWrap>
+          <TableWrap fixed minWidth="min-w-[820px]">
             <thead>
               <tr>
-                <th className={th}>Convenio</th>
-                <th className={th}>Entidad</th>
-                <th className={`${th} text-right`}>Descuento</th>
-                <th className={th}>Categorías</th>
-                <th className={th}>Estado</th>
-                {canWrite && <th className={`${th} text-right`}>Acciones</th>}
+                <th className={`${th} w-[20%]`}>Convenio</th>
+                <th className={`${th} w-[24%]`}>Entidad</th>
+                <th className={`${th} w-[12%] text-center`}>Descuento</th>
+                <th className={`${th} text-center`}>Categorías</th>
+                <th className={`${th} w-[12%] text-center`}>Estado</th>
+                {canWrite && <th className={`${th} w-28 text-center`}>Acciones</th>}
               </tr>
             </thead>
             <tbody>
@@ -187,14 +187,14 @@ export default function ConveniosTab({ canWrite }) {
                   <tr key={c.id} className="hover:bg-subtle/60">
                     <td className={`${td} font-semibold`}>{c.nombre}</td>
                     <td className={`${td} text-muted`}>{c.entidad}</td>
-                    <td className={`${td} tabular text-right font-display text-base font-bold`}>{p == null ? '—' : `${p}%`}</td>
-                    <td className={td}>
+                    <td className={`${td} tabular text-center font-display text-base font-bold`}>{p == null ? '—' : `${p}%`}</td>
+                    <td className={`${td} text-center`}>
                       {ids.length === 0 ? (
                         <span className="text-xs text-faint">Sin descuento</span>
                       ) : cubreTodas ? (
                         <Badge tone="primary">Todas</Badge>
                       ) : (
-                        <span className="flex max-w-xs flex-wrap gap-1">
+                        <span className="flex flex-wrap justify-center gap-1">
                           {ids.map((id) => (
                             <Badge key={id} tone="muted">
                               {catName[id] ?? 'Categoría'}
@@ -203,12 +203,12 @@ export default function ConveniosTab({ canWrite }) {
                         </span>
                       )}
                     </td>
-                    <td className={td}>
+                    <td className={`${td} text-center`}>
                       <StatusBadge status={c.status} />
                     </td>
                     {canWrite && (
                       <td className={td}>
-                        <RowActions item={c} onEdit={() => setEditing(c)} onToggle={() => toggle.ask(c)} />
+                        <RowActions centered item={c} onEdit={() => setEditing(c)} onToggle={() => toggle.ask(c)} />
                       </td>
                     )}
                   </tr>
