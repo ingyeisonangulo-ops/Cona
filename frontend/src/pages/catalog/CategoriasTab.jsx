@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { FolderTree, Pencil } from 'lucide-react';
-import { Alert, Button, Card, EmptyState, Input, Modal, Spinner, StatusBadge } from '../../components/ui.jsx';
+import { IconButton, Alert, Button, Card, EmptyState, Input, Modal, Spinner, StatusBadge } from '../../components/ui.jsx';
 import { post, put } from '../../lib/api.js';
 import { formatNumber } from '../../lib/format.js';
 import { useResource } from '../../lib/useResource.js';
@@ -78,24 +78,22 @@ export default function CategoriasTab({ canWrite }) {
           <EmptyState icon={FolderTree} title="No hay categorías" />
         </Card>
       ) : (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        <div className="grid gap-3 xs:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
           {list.map((c) => (
-            <Card key={c.id} className="flex flex-col gap-4">
+            <Card key={c.id} compact className="flex flex-col gap-3">
               <div className="flex items-start gap-3">
-                <span className="grid size-11 shrink-0 place-items-center rounded-full bg-primary text-white">
+                <span className="grid size-9 shrink-0 place-items-center rounded-full bg-primary text-white">
                   <FolderTree className="size-5" aria-hidden />
                 </span>
                 <div className="min-w-0 flex-1">
-                  <h3 className="font-bold leading-snug">{c.nombre}</h3>
+                  <h3 className="text-sm font-bold leading-snug">{c.nombre}</h3>
                   <p className="text-xs text-muted">{formatNumber(c.serviciosCount)} servicio(s)</p>
                 </div>
                 <StatusBadge status={c.status} />
               </div>
               {canWrite && (
-                <div className="mt-auto flex flex-wrap gap-2 border-t border-line pt-4">
-                  <Button variant="outline" icon={Pencil} onClick={() => setEditing(c)} className="px-3">
-                    Editar
-                  </Button>
+                <div className="mt-auto flex justify-end gap-1 border-t border-line pt-2">
+                  <IconButton label="Editar" icon={Pencil} onClick={() => setEditing(c)} className="hover:bg-primary-soft hover:text-primary" />
                   <StatusToggleButton item={c} onClick={() => toggle.ask(c)} />
                 </div>
               )}

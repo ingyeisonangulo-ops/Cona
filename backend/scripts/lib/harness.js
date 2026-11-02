@@ -17,7 +17,9 @@ export const EMAILS = {
   colaborador: 'colaborador@clinica.test',
 };
 
-export async function startHarness({ env: extraEnv = {}, port = 54329, quiet = false } = {}) {
+// extraScripts: scripts adicionales (p. ej. seed-demo) que se ejecutan como dueño
+// antes de conectar la API (PGlite atiende una sola conexión a la vez).
+export async function startHarness({ env: extraEnv = {}, port = 54329, quiet = false, extraScripts = [] } = {}) {
   const { PGlite } = await import('@electric-sql/pglite');
   const { PGLiteSocketServer } = await import('@electric-sql/pglite-socket');
 
@@ -45,6 +47,7 @@ export async function startHarness({ env: extraEnv = {}, port = 54329, quiet = f
   await run('scripts/migrate.js'); // idempotencia
   await run('scripts/seed.js');
   await run('scripts/seed.js'); // idempotencia
+  for (const script of extraScripts) await run(script);
 
   // PGlite comparte una única sesión: desde aquí es la del rol de la app.
   await pg.exec('SET ROLE crm_app');

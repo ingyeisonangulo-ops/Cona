@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { Ban, CheckCircle2, History, Pencil, Plus, Search, Trash2, UserCheck } from 'lucide-react';
+import { Ban, Check, CheckCircle2, History, Pencil, Plus, Search, Trash2, UserCheck } from 'lucide-react';
 import { CheckboxNote, RegistrosRecientes } from './registro/Recientes.jsx';
 import { MEDIOS_ORIGEN, todayBogota, useCatalogos } from '../components/business.jsx';
 import { Alert, Button, Card, IconButton, Input, PageHeader, Select } from '../components/ui.jsx';
@@ -16,6 +16,35 @@ function previewValor(item, servicios, convenios) {
   const c = convenios.find((x) => x.id === item.convenioId);
   const pct = Number(c?.porcentajeDescuentoCategoria?.[s.categoriaId] ?? 0);
   return Math.round(s.valorPublico * (100 - pct)) / 100;
+}
+
+const PASOS = ['Paciente', 'Servicios', 'Confirmar'];
+
+// Indicador de avance del registro (informativo: el formulario es uno solo).
+function Pasos({ actual }) {
+  return (
+    <ol aria-label="Pasos del registro" className="mb-5 flex flex-wrap gap-2">
+      {PASOS.map((p, i) => {
+        const hecho = i < actual;
+        const activo = i === actual;
+        return (
+          <li
+            key={p}
+            aria-current={activo ? 'step' : undefined}
+            className={`flex items-center gap-2.5 rounded-full py-1.5 pl-1.5 pr-4 text-[13px] font-semibold ${
+              hecho ? 'bg-success-soft text-success' : activo ? 'bg-primary-soft text-primary' : 'border border-line bg-surface text-muted'
+            }`}
+          >
+            <span className={`grid size-7 place-items-center rounded-full text-xs ${hecho ? 'bg-success-strong text-white' : activo ? 'bg-primary text-white' : 'bg-subtle'}`}>
+              {hecho ? <Check className="size-3.5" strokeWidth={3} aria-hidden /> : i + 1}
+            </span>
+            {p}
+            {hecho && <span className="sr-only">(completado)</span>}
+          </li>
+        );
+      })}
+    </ol>
+  );
 }
 
 export default function RegistroPage() {
@@ -63,6 +92,7 @@ export default function RegistroPage() {
 
   const setItem = (key, patch) => setItems((list) => list.map((i) => (i.key === key ? { ...i, ...patch } : i)));
   const total = items.reduce((a, i) => a + (previewValor(i, cat.servicios, cat.convenios) ?? 0), 0);
+  const listo = Boolean(lookup) && items.every((i) => i.servicioId && i.colaboradorId);
 
   async function onSubmit(e) {
     e.preventDefault();
@@ -98,10 +128,11 @@ export default function RegistroPage() {
 
   return (
     <>
-      <PageHeader title="Registro de servicios" description="Inicie con la cédula del paciente (RF-08)." />
+      <PageHeader eyebrow="Operación" title="Registrar servicios" description="Inicie con la cédula del paciente (RF-08)." />
+      <Pasos actual={!lookup ? 0 : listo ? 2 : 1} />
       <form onSubmit={onSubmit} className="grid gap-5 lg:grid-cols-5">
         <Card className="flex flex-col gap-4 lg:col-span-2">
-          <h2 className="font-bold">1. Paciente</h2>
+          <h2 className="text-base font-bold">Paciente</h2>
           <div className="flex items-end gap-2">
             <label className="flex flex-1 flex-col gap-1.5 text-sm font-medium">
               Cédula
@@ -119,11 +150,11 @@ export default function RegistroPage() {
                     buscar();
                   }
                 }}
-                className="touch-target w-full rounded-xl border border-line bg-surface px-3.5 text-lg font-semibold tracking-wide focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/15"
+                className="h-14 w-full rounded-2xl border border-line bg-subtle px-4 font-display text-xl font-semibold tracking-wider placeholder:font-sans placeholder:text-base placeholder:font-normal placeholder:tracking-normal focus:border-primary focus:bg-surface focus:outline-none focus:ring-4 focus:ring-primary-soft"
                 placeholder="Número de documento"
               />
             </label>
-            <Button variant="outline" icon={Search} loading={buscando} onClick={buscar} aria-label="Buscar cédula">
+            <Button variant="dark" icon={Search} loading={buscando} onClick={buscar} aria-label="Buscar cédula" className="h-14 rounded-2xl">
               <span className="hidden md:inline">Buscar</span>
             </Button>
           </div>
@@ -154,7 +185,7 @@ export default function RegistroPage() {
 
         <Card className="flex flex-col gap-4 lg:col-span-3">
           <div className="flex flex-wrap items-end justify-between gap-3">
-            <h2 className="font-bold">2. Servicios realizados</h2>
+            <h2 className="text-base font-bold">Servicios realizados</h2>
             <Input label="Fecha de atención" type="date" max={todayBogota()} value={fecha} onChange={(e) => setFecha(e.target.value)} className="w-44" />
           </div>
           {cat.error && <Alert>{cat.error}</Alert>}
@@ -163,9 +194,9 @@ export default function RegistroPage() {
             {items.map((item, idx) => {
               const valor = previewValor(item, cat.servicios, cat.convenios);
               return (
-                <div key={item.key} className="rounded-2xl border border-line bg-bg/50 p-3">
+                <div key={item.key} className="rounded-2xl border border-line p-4">
                   <div className="mb-2 flex items-center justify-between">
-                    <span className="text-xs font-semibold uppercase tracking-wide text-muted">Servicio {idx + 1}</span>
+                    <span className="flex items-center gap-2.5 text-sm font-semibold"><span className="tabular grid size-8 place-items-center rounded-xl bg-primary-soft text-xs font-bold text-primary">{String(idx + 1).padStart(2, '0')}</span>Servicio {idx + 1}</span>
                     {items.length > 1 && <IconButton label="Quitar servicio" icon={Trash2} onClick={() => setItems((l) => l.filter((i) => i.key !== item.key))} />}
                   </div>
                   <div className="grid gap-3 md:grid-cols-3">
@@ -211,7 +242,7 @@ export default function RegistroPage() {
                 </div>
               );
             })}
-            <Button variant="outline" icon={Plus} onClick={() => setItems((l) => [...l, newItem()])} className="self-start">
+            <Button variant="dashed" icon={Plus} onClick={() => setItems((l) => [...l, newItem()])} className="w-full">
               Agregar servicio
             </Button>
           </fieldset>
@@ -228,7 +259,7 @@ export default function RegistroPage() {
           )}
           <div className="flex flex-col-reverse items-stretch justify-between gap-3 border-t border-line pt-4 md:flex-row md:items-center">
             <p className="text-sm text-muted">
-              Total estimado: <strong className="text-lg text-text">{formatCOP(total)}</strong>
+              Total estimado <strong className="tabular block font-display text-[1.75rem] font-bold leading-tight tracking-tight text-text">{formatCOP(total)}</strong>
               <span className="block text-xs">El valor definitivo lo calcula el servidor.</span>
             </p>
             <Button type="submit" loading={saving} disabled={!lookup}>

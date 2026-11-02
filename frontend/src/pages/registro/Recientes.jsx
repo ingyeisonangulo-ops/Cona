@@ -198,7 +198,7 @@ export function RegistrosRecientes({ reloadKey, icons }) {
           <EmptyState title="Aún no hay registros recientes" />
         </Card>
       ) : (
-        <Card className="p-0 md:p-0">
+        <Card flush>
           <TableWrap>
             <thead>
               <tr>

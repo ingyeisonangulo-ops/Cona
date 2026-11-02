@@ -159,10 +159,46 @@ try {
     reagendar: { fecha: addDays(today, 5), hora: '16:00' },
   });
   ok(r.status === 201 && r.data.nuevaCita?.tipo === 'reagendada', 'cerrar inasistencia y reagendar');
-  r = await asi.req('POST', '/cierres-ausencia', { citaId: citaVencida.id, motivo: 'Tiempo', canalContacto: 'SMS' });
+  r = await asi.req('POST', '/cierres-ausencia', { citaId: citaVencida.id, motivo: 'Tiempo', canalContacto: 'WhatsApp' });
   ok(r.status === 409, 'inasistencia ya cerrada → 409');
-  r = await asi.req('POST', '/cierres-ausencia', { citaId: citaCumplida.id, motivo: 'Tiempo', canalContacto: 'SMS' });
+  r = await asi.req('POST', '/cierres-ausencia', { citaId: citaCumplida.id, motivo: 'Tiempo', canalContacto: 'WhatsApp' });
   ok(r.status === 400, 'solo se cierran citas Ausente');
+
+  // Estado del seguimiento: Responde / No responde / Pendiente
+  const ausentes = [];
+  for (const hora of ['15:00', '16:00']) {
+    r = await asi.req('POST', '/citas', { pacienteId, fecha: manana, hora });
+    ausentes.push(r.data.cita.id);
+  }
+  await asOwner((pg) => pg.query('UPDATE citas SET fecha = app_today() - 1 WHERE id = ANY($1::uuid[])', [ausentes]));
+  for (const id of ausentes) await asi.req('PATCH', `/citas/${id}/estado`, { estado: 'Ausente' });
+  r = await asi.req('POST', '/cierres-ausencia', { citaId: ausentes[0], respuesta: 'No responde', canalContacto: 'SMS' });
+  ok(r.status === 400, 'canal distinto de Llamada/WhatsApp rechazado');
+  r = await asi.req('POST', '/cierres-ausencia', {
+    citaId: ausentes[0],
+    respuesta: 'No responde',
+    canalContacto: 'WhatsApp',
+    reagendar: { fecha: addDays(today, 6), hora: '16:00' },
+  });
+  ok(r.status === 400, '"No responde" no permite reagendar');
+  r = await asi.req('POST', '/cierres-ausencia', { citaId: ausentes[0], respuesta: 'No responde', canalContacto: 'WhatsApp', motivo: 'Tiempo' });
+  ok(r.status === 201, '"No responde" se cierra sin motivo (se ignora)');
+  const [ay, am] = addDays(today, -1).split('-').map(Number);
+  r = await asi.req('GET', `/cierres-ausencia/seguimientos?anio=${ay}&mes=${am}`);
+  const estadoDe = (id) => r.data.seguimientos.find((s) => s.citaId === id)?.estado;
+  ok(estadoDe(citaVencida.id) === 'Responde' && estadoDe(ausentes[0]) === 'No responde' && estadoDe(ausentes[1]) === 'Pendiente', 'seguimientos con estado Responde / No responde / Pendiente');
+  r = await asi.req('GET', `/cierres-ausencia/estadisticas?anio=${ay}&mes=${am}`);
+  const st = r.data;
+  const n = (arr, key, val) => arr.find((x) => x[key] === val)?.cantidad;
+  ok(
+    n(st.estados, 'estado', 'Responde') === 1 && n(st.estados, 'estado', 'No responde') === 1 && n(st.estados, 'estado', 'Pendiente') === 1,
+    'estadísticas: conteo por estado',
+    JSON.stringify(st.estados),
+  );
+  ok(n(st.motivos, 'motivo', 'No recordaba') === 1 && st.motivos.length === 5, 'estadísticas: motivos');
+  ok(n(st.canales, 'canal', 'Llamada') === 1 && n(st.canales, 'canal', 'WhatsApp') === 0, 'estadísticas: canal con comunicación lograda');
+  ok(n(st.reagendamiento, 'opcion', 'Reagendó') === 1 && n(st.reagendamiento, 'opcion', 'No reagendó') === 1, 'estadísticas: reagendaron / no reagendaron');
+  ok(n(st.respuesta, 'respuesta', 'Responde') === 1 && n(st.respuesta, 'respuesta', 'No responde') === 1, 'estadísticas: responde / no responde');
 
   // ------------------------------------------------- Vista Colaborador
   r = await col.req('GET', '/mi-progreso');

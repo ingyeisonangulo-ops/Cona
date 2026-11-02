@@ -216,7 +216,7 @@ export default function UsersPage() {
           <EmptyState icon={Users} title="No hay usuarios" />
         </Card>
       ) : (
-        <Card className="p-0 md:p-0">
+        <Card flush>
           <TableWrap>
             <thead>
               <tr>

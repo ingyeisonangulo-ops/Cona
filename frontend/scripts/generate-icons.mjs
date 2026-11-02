@@ -1,82 +1,70 @@
-// Genera los íconos PNG de la PWA sin dependencias (codificador PNG mínimo).
-// Motivo: amanecer (sol blanco con trazo rojo) sobre azul institucional.
-// Reemplazar por el logo oficial cuando esté disponible (ver DECISIONES.md).
-import { deflateSync } from 'node:zlib';
-import { mkdirSync, writeFileSync } from 'node:fs';
+// Genera las variantes web del logo oficial y los íconos de la PWA a partir de
+// frontend/branding/logo-cona-original.png (no se publica: pesa ~1,5 MB).
+//
+//   npm --prefix frontend run icons
+//
+// Salidas:
+//   public/brand/logo-completo.png     logo con nombre y lema (login)
+//   public/brand/logo-marca.png        "cona" + diente (barra lateral)
+//   public/brand/isotipo.png               solo el diente (encabezado compacto)
+//   public/favicon.png, public/icons/*     favicon e íconos de instalación
+import sharp from 'sharp';
+import { mkdirSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 
-const BLUE = [0x1e, 0x65, 0xd6];
-const DARK = [0x00, 0x4a, 0xad];
-const WHITE = [0xff, 0xff, 0xff];
-const RED = [0xd9, 0x04, 0x29];
+const SRC = fileURLToPath(new URL('../branding/logo-cona-original.png', import.meta.url));
+const out = (p) => fileURLToPath(new URL(`../public/${p}`, import.meta.url));
+mkdirSync(out('brand'), { recursive: true });
+mkdirSync(out('icons'), { recursive: true });
 
-const crcTable = Array.from({ length: 256 }, (_, n) => {
-  let c = n;
-  for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
-  return c >>> 0;
-});
-const crc32 = (buf) => {
-  let c = 0xffffffff;
-  for (const b of buf) c = crcTable[(c ^ b) & 0xff] ^ (c >>> 8);
-  return (c ^ 0xffffffff) >>> 0;
-};
-const chunk = (type, data) => {
-  const len = Buffer.alloc(4);
-  len.writeUInt32BE(data.length);
-  const td = Buffer.concat([Buffer.from(type), data]);
-  const crc = Buffer.alloc(4);
-  crc.writeUInt32BE(crc32(td));
-  return Buffer.concat([len, td, crc]);
-};
+// Regiones del original (2492×1268 px).
+const COMPLETO = { left: 65, top: 168, width: 2306, height: 1001 };
+const MARCA = { left: 65, top: 168, width: 2306, height: 712 }; // sin nombre ni lema
+const DIENTE = { left: 1560, top: 168, width: 820, height: 700 };
 
-function png(size, pixel) {
-  const raw = Buffer.alloc((size * 3 + 1) * size);
-  for (let y = 0; y < size; y++) {
-    raw[y * (size * 3 + 1)] = 0;
-    for (let x = 0; x < size; x++) {
-      const [r, g, b] = pixel(x + 0.5, y + 0.5, size);
-      const i = y * (size * 3 + 1) + 1 + x * 3;
-      raw[i] = r;
-      raw[i + 1] = g;
-      raw[i + 2] = b;
+// El diente toca la letra "a": se retiran los grises/negros de esa zona.
+async function isotipo() {
+  const { data, info } = await sharp(SRC).extract(DIENTE).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+  for (let y = 0; y < info.height; y++) {
+    for (let x = 0; x < info.width; x++) {
+      const i = (y * info.width + x) * 4;
+      const [r, g, b] = [data[i], data[i + 1], data[i + 2]];
+      const gx = DIENTE.left + x;
+      const gy = DIENTE.top + y;
+      const sat = Math.max(r, g, b) - Math.min(r, g, b);
+      if (gx < 1720 && gy > 380 && gy < 800 && sat < 45 && (r + g + b) / 3 < 235) data[i + 3] = 0;
     }
   }
-  const ihdr = Buffer.alloc(13);
-  ihdr.writeUInt32BE(size, 0);
-  ihdr.writeUInt32BE(size, 4);
-  ihdr[8] = 8;
-  ihdr[9] = 2;
-  return Buffer.concat([
-    Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
-    chunk('IHDR', ihdr),
-    chunk('IDAT', deflateSync(raw, { level: 9 })),
-    chunk('IEND', Buffer.alloc(0)),
-  ]);
+  return sharp(data, { raw: info }).trim().png().toBuffer();
 }
 
-// scale < 1 deja margen de seguridad para íconos "maskable".
-function art(scale) {
-  return (x, y, s) => {
-    const u = (x / s - 0.5) / scale;
-    const v = (y / s - 0.5) / scale;
-    const horizon = 0.12;
-    const r = Math.hypot(u, v - horizon);
-    if (v > horizon + 0.03 && v < horizon + 0.09 && Math.abs(u) < 0.36) return RED;
-    if (v <= horizon && r < 0.26) return WHITE;
-    if (v <= horizon && r < 0.32 && r > 0.29) return WHITE;
-    if (v > horizon + 0.14 && v < horizon + 0.18 && Math.abs(u) < 0.26) return WHITE;
-    return v > 0.42 ? DARK : BLUE;
-  };
+async function variante(region, name, width) {
+  // sharp aplica trim antes que extract en un mismo pipeline: se hace en dos pasos.
+  const recorte = await sharp(SRC).extract(region).png().toBuffer();
+  const base = sharp(recorte).trim().resize({ width, withoutEnlargement: true });
+  await base.clone().png({ compressionLevel: 9, palette: true, quality: 90 }).toFile(out(`brand/${name}.png`));
+  console.log(`brand/${name}.png`);
 }
 
-const out = new URL('../public/icons/', import.meta.url);
-mkdirSync(out, { recursive: true });
-const icons = [
-  ['icon-192.png', 192, 1],
-  ['icon-512.png', 512, 1],
-  ['maskable-512.png', 512, 0.72],
-  ['apple-touch-icon-180.png', 180, 0.9],
-];
-for (const [name, size, scale] of icons) {
-  writeFileSync(new URL(name, out), png(size, art(scale)));
-  console.log(`icons/${name}`);
+// Ícono cuadrado: isotipo centrado sobre blanco con margen (padding = fracción del lado).
+async function icono(diente, size, padding, file, background = '#ffffff') {
+  const inner = Math.round(size * (1 - padding * 2));
+  const img = await sharp(diente).resize({ width: inner, height: inner, fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } }).toBuffer();
+  await sharp({ create: { width: size, height: size, channels: 4, background } })
+    .composite([{ input: img, gravity: 'center' }])
+    .png({ compressionLevel: 9 })
+    .toFile(out(file));
+  console.log(file);
 }
+
+await variante(COMPLETO, 'logo-completo', 960);
+await variante(MARCA, 'logo-marca', 640);
+const diente = await isotipo();
+await sharp(diente).resize({ width: 256 }).png({ compressionLevel: 9, palette: true, quality: 90 }).toFile(out('brand/isotipo.png'));
+console.log('brand/isotipo.png');
+
+await icono(diente, 192, 0.1, 'icons/icon-192.png');
+await icono(diente, 512, 0.1, 'icons/icon-512.png');
+await icono(diente, 512, 0.2, 'icons/maskable-512.png'); // zona segura de íconos "maskable"
+await icono(diente, 180, 0.12, 'icons/apple-touch-icon-180.png');
+await icono(diente, 64, 0.04, 'favicon.png', { r: 0, g: 0, b: 0, alpha: 0 });

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Pencil, Stethoscope } from 'lucide-react';
-import { Alert, Badge, Button, Card, EmptyState, Input, Modal, Select, Spinner, StatusBadge, TableWrap, td, th } from '../../components/ui.jsx';
+import { IconButton, Alert, Badge, Button, Card, EmptyState, Input, Modal, Select, Spinner, StatusBadge, TableWrap, td, th } from '../../components/ui.jsx';
 import { post, put } from '../../lib/api.js';
 import { formatCOP, formatNumber } from '../../lib/format.js';
 import { useResource } from '../../lib/useResource.js';
@@ -108,10 +108,8 @@ export default function ServiciosTab({ canWrite, showMoney }) {
 
   const actions = (s) =>
     canWrite && (
-      <div className="flex flex-wrap gap-2">
-        <Button variant="outline" icon={Pencil} onClick={() => setEditing(s)} className="px-3">
-          Editar
-        </Button>
+      <div className="flex justify-end gap-1">
+        <IconButton label="Editar" icon={Pencil} onClick={() => setEditing(s)} className="hover:bg-primary-soft hover:text-primary" />
         <StatusToggleButton item={s} onClick={() => toggle.ask(s)} />
       </div>
     );
@@ -139,17 +137,17 @@ export default function ServiciosTab({ canWrite, showMoney }) {
           </EmptyState>
         </Card>
       ) : view === 'grid' ? (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-3 md:grid-cols-3 xl:grid-cols-4">
           {list.map((s) => (
-            <Card key={s.id} className="flex flex-col gap-4">
+            <Card key={s.id} compact className="flex flex-col gap-3">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <Badge>{s.categoriaNombre}</Badge>
-                  <h3 className="mt-2 font-bold leading-snug text-text">{s.nombre}</h3>
+                  <h3 className="mt-1.5 text-sm font-bold leading-snug text-text">{s.nombre}</h3>
                 </div>
                 <StatusBadge status={s.status} />
               </div>
-              <dl className="grid grid-cols-3 gap-2 text-sm">
+              <dl className="grid grid-cols-3 gap-2 text-xs">
                 {showMoney && (
                   <>
                     <div>
@@ -167,12 +165,12 @@ export default function ServiciosTab({ canWrite, showMoney }) {
                   <dd className="font-semibold">{formatNumber(s.puntos)}</dd>
                 </div>
               </dl>
-              {canWrite && <div className="mt-auto border-t border-line pt-4">{actions(s)}</div>}
+              {canWrite && <div className="mt-auto border-t border-line pt-3">{actions(s)}</div>}
             </Card>
           ))}
         </div>
       ) : (
-        <Card className="p-0 md:p-0">
+        <Card flush>
           <TableWrap>
             <thead>
               <tr>

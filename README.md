@@ -86,6 +86,14 @@ npm run seed      # en dev crea además gerente@, asistente@ y colaborador@ + ca
 
 En dos terminales: `npm --prefix backend run dev` y `npm --prefix frontend run dev` → http://localhost:5173.
 
+### Sin PostgreSQL instalado (base embebida + datos ficticios)
+
+```bash
+npm --prefix backend run dev:pglite
+```
+
+Levanta PostgreSQL embebido (PGlite, datos en `backend/.local-db/`), aplica migraciones, seed y **datos ficticios** (`seed:demo`: colaboradores, ~70 pacientes, servicios desde hace dos meses, citas con alertas, inasistencias y metas) y arranca la API en :3000. En otra terminal: `npm --prefix frontend run dev`. Para empezar de cero, detenga el backend y borre `backend/.local-db/`. Solo para desarrollo (usa una única conexión a la base).
+
 ## 6. Pruebas y auditoría de seguridad
 
 ```bash

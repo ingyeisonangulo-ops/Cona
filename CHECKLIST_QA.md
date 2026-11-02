@@ -103,13 +103,20 @@ Cada módulo incluye **caminos felices** (✅) y **rutas de fallo** (⛔), que d
 ## 7. Inasistencias
 
 ✅ Caminos felices
-- [ ] Las citas Ausentes aparecen en "Pendientes de seguimiento" con el teléfono (clic para llamar en celular).
-- [ ] Registrar motivo (Imprevisto, Falta de dinero, Tiempo, No recordaba, Otros), canal y observación.
-- [ ] Marcar "El paciente reagenda" abre el calendario; al guardar se crea la nueva cita y el cierre muestra la nueva fecha.
+- [ ] Gráficas de columnas del mes (cambiar con las flechas): estado de los seguimientos, motivos, canal con comunicación lograda (Llamada / WhatsApp), reagendó / no reagendó y responde / no responde. Cada gráfica tiene valores, tooltip al pasar el mouse y botón **Tabla**.
+- [ ] La tabla "Seguimientos del mes" muestra la columna **Estado**: Pendiente (sin cerrar), Responde o No responde, y se filtra por estado. El teléfono permite llamar desde el celular.
+- [ ] **Registrar** un seguimiento con canal Llamada o WhatsApp y "Responde": exige motivo (Imprevisto, Falta de dinero, Tiempo, No recordaba, Otros); opcionalmente "El paciente reagenda" abre el calendario y crea la nueva cita.
+- [ ] Registrar "No responde": no pide motivo ni permite reagendar; queda con estado No responde.
+- [ ] Las gráficas y el estado se actualizan al guardar.
 
 ⛔ Rutas de fallo
 - [ ] Motivo "Otros" sin observación → rechazado.
 - [ ] Cerrar dos veces la misma inasistencia → "La inasistencia ya fue cerrada".
+- [ ] Canal distinto de Llamada/WhatsApp (vía API) → rechazado.
+
+## 7b. Ajustes visuales
+- [ ] Al crear o editar servicio, categoría o convenio, los botones Cancelar / Guardar tienen margen inferior y no tocan el borde del recuadro.
+- [ ] Las tarjetas de Servicios, Categorías y Convenios son más compactas (más tarjetas por fila, menos alto).
 
 ## 8. Metas, comisiones y recurrencia
 

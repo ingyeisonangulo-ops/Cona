@@ -54,6 +54,35 @@ tableroRouter.get(
     const costo = money(k.costo);
     const utilidad = money(ingreso - costo);
 
+    // Serie diaria del mes (gráfica de área) y mes anterior (variación de los KPI).
+    const diaria = (
+      await db.query(
+        `SELECT d::date::text AS fecha,
+                coalesce(sum(sr.valor_cobrado), 0) AS ingreso, coalesce(sum(sr.costo_aplicado), 0) AS costo,
+                count(sr.id)::int AS servicios
+         FROM generate_series($1::date, ($2::date - 1), interval '1 day') d
+         LEFT JOIN servicios_realizados sr ON sr.fecha = d::date AND sr.estado = 'registrado'
+         GROUP BY d ORDER BY d`,
+        [desde, hasta],
+      )
+    ).rows.map((r) => ({ fecha: r.fecha, ingreso: money(r.ingreso), costo: money(r.costo), servicios: r.servicios }));
+    const prev = monthBounds(mes === 1 ? anio - 1 : anio, mes === 1 ? 12 : mes - 1);
+    const kp = (
+      await db.query(
+        `SELECT coalesce(sum(valor_cobrado), 0) AS ingreso, coalesce(sum(costo_aplicado), 0) AS costo, count(*)::int AS servicios,
+                (SELECT count(*)::int FROM pacientes WHERE fecha_registro >= $1 AND fecha_registro < $2) AS nuevos
+         FROM servicios_realizados WHERE estado = 'registrado' AND fecha >= $1 AND fecha < $2`,
+        [prev.desde, prev.hasta],
+      )
+    ).rows[0];
+    const anterior = {
+      ingresoTotal: money(kp.ingreso),
+      costoTotal: money(kp.costo),
+      utilidadNeta: money(kp.ingreso - kp.costo),
+      serviciosRealizados: kp.servicios,
+      pacientesNuevos: kp.nuevos,
+    };
+
     const servicios = (
       await db.query(
         `SELECT s.id, s.nombre, c.nombre AS categoria, count(*)::int AS cantidad,
@@ -121,6 +150,8 @@ tableroRouter.get(
         citasPendientes: citas.pendientes,
         comisionesTotales: money(colaboradores.reduce((a, c) => a + c.comision, 0)),
       },
+      anterior,
+      serieDiaria: diaria,
       colaboradores,
       servicios: clasificar(servicios),
       convenios,

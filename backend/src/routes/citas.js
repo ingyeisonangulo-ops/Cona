@@ -5,6 +5,7 @@ import { badRequest, forbidden, requireFound } from '../lib/errors.js';
 import { hasPermission } from '../lib/permissions.js';
 import { parse, txRoute } from '../lib/txRoute.js';
 import { requirePermission } from '../middleware/authorize.js';
+import { monthBounds, todayParts } from '../services/metrics.js';
 
 export const citasRouter = Router();
 export const cierresRouter = Router();
@@ -227,7 +228,20 @@ citasRouter.post(
 cierresRouter.use(requirePermission('CLOSE_ABSENCES'));
 
 export const MOTIVOS_AUSENCIA = ['Imprevisto', 'Falta de dinero', 'Tiempo', 'No recordaba', 'Otros'];
-export const CANALES_CONTACTO = ['Llamada', 'WhatsApp', 'SMS', 'Correo electrónico', 'Presencial'];
+export const CANALES_CONTACTO = ['Llamada', 'WhatsApp'];
+export const RESPUESTAS = ['Responde', 'No responde'];
+export const ESTADOS_SEGUIMIENTO = ['Pendiente', 'Responde', 'No responde'];
+
+function periodo(query) {
+  const t = todayParts();
+  return parse(
+    z.object({
+      anio: z.coerce.number().int().min(2020).max(2100).default(t.anio),
+      mes: z.coerce.number().int().min(1).max(12).default(t.mes),
+    }),
+    query,
+  );
+}
 
 cierresRouter.get(
   '/pendientes',
@@ -238,6 +252,86 @@ cierresRouter.get(
        ORDER BY c.fecha DESC, c.hora DESC LIMIT 300`,
     );
     return { citas: rows.map(mapCita) };
+  }),
+);
+
+// Inasistencias (citas Ausente) del mes con su estado de seguimiento:
+// Pendiente (sin cierre), Responde o No responde.
+const SEGUIMIENTO_SQL = `SELECT c.id AS cita_id, c.fecha, to_char(c.hora, 'HH24:MI') AS hora,
+    p.id AS paciente_id, p.nombre || ' ' || p.apellido AS paciente, p.telefono, s.nombre AS servicio,
+    coalesce(ca.respuesta, 'Pendiente') AS estado, ca.id AS cierre_id, ca.motivo, ca.observacion,
+    ca.canal_contacto, ca.reagendo, ca.fecha AS fecha_cierre, u.full_name AS usuario,
+    n.fecha AS nueva_fecha, to_char(n.hora, 'HH24:MI') AS nueva_hora
+  FROM citas c
+  JOIN pacientes p ON p.id = c.paciente_id
+  LEFT JOIN servicios s ON s.id = c.servicio_id
+  LEFT JOIN cierres_ausencia ca ON ca.cita_id = c.id
+  LEFT JOIN users u ON u.id = ca.usuario_id
+  LEFT JOIN citas n ON n.id = ca.cita_reagendada_id
+  WHERE c.estado = 'Ausente' AND c.fecha >= $1 AND c.fecha < $2`;
+
+const mapSeguimiento = (r) => ({
+  citaId: r.cita_id,
+  fecha: r.fecha,
+  hora: r.hora,
+  paciente: { id: r.paciente_id, nombre: r.paciente, telefono: r.telefono },
+  servicio: r.servicio,
+  estado: r.estado,
+  cierre: r.cierre_id
+    ? {
+        id: r.cierre_id,
+        motivo: r.motivo,
+        observacion: r.observacion,
+        canalContacto: r.canal_contacto,
+        reagendo: r.reagendo,
+        fecha: r.fecha_cierre,
+        usuario: r.usuario,
+        nuevaCita: r.reagendo ? { fecha: r.nueva_fecha, hora: r.nueva_hora } : null,
+      }
+    : null,
+});
+
+cierresRouter.get(
+  '/seguimientos',
+  txRoute(async (req) => {
+    const { anio, mes } = periodo(req.query);
+    const { estado } = parse(z.object({ estado: z.enum([...ESTADOS_SEGUIMIENTO, 'all']).default('all') }), req.query);
+    const { desde, hasta } = monthBounds(anio, mes);
+    const { rows } = await db.query(
+      `SELECT * FROM (${SEGUIMIENTO_SQL}) t WHERE ($3 = 'all' OR t.estado = $3) ORDER BY t.fecha DESC, t.hora DESC LIMIT 500`,
+      [desde, hasta, estado],
+    );
+    return { anio, mes, seguimientos: rows.map(mapSeguimiento) };
+  }),
+);
+
+// Cantidades para las gráficas de columnas del mes (por fecha de la cita).
+cierresRouter.get(
+  '/estadisticas',
+  txRoute(async (req) => {
+    const { anio, mes } = periodo(req.query);
+    const { desde, hasta } = monthBounds(anio, mes);
+    const { rows } = await db.query(SEGUIMIENTO_SQL, [desde, hasta]);
+    const count = (pred) => rows.filter(pred).length;
+    const responden = rows.filter((r) => r.estado === 'Responde');
+    const cerrados = rows.filter((r) => r.estado !== 'Pendiente');
+    const canales = [...new Set([...CANALES_CONTACTO, ...cerrados.map((r) => r.canal_contacto)])];
+    return {
+      anio,
+      mes,
+      total: rows.length,
+      estados: ESTADOS_SEGUIMIENTO.map((e) => ({ estado: e, cantidad: count((r) => r.estado === e) })),
+      motivos: MOTIVOS_AUSENCIA.map((m) => ({ motivo: m, cantidad: responden.filter((r) => r.motivo === m).length })),
+      // Canal con el que se logró la comunicación (solo seguimientos con respuesta).
+      canales: canales
+        .map((c) => ({ canal: c, cantidad: responden.filter((r) => r.canal_contacto === c).length }))
+        .filter((c) => CANALES_CONTACTO.includes(c.canal) || c.cantidad > 0),
+      reagendamiento: [
+        { opcion: 'Reagendó', cantidad: cerrados.filter((r) => r.reagendo).length },
+        { opcion: 'No reagendó', cantidad: cerrados.filter((r) => !r.reagendo).length },
+      ],
+      respuesta: RESPUESTAS.map((x) => ({ respuesta: x, cantidad: count((r) => r.estado === x) })),
+    };
   }),
 );
 
@@ -262,6 +356,7 @@ cierresRouter.get(
         citaFecha: r.cita_fecha,
         citaHora: r.cita_hora,
         paciente: r.paciente,
+        respuesta: r.respuesta,
         motivo: r.motivo,
         observacion: r.observacion,
         canalContacto: r.canal_contacto,
@@ -274,17 +369,25 @@ cierresRouter.get(
   }),
 );
 
+// Si el paciente responde: motivo obligatorio y reagendamiento opcional.
+// Si no responde: se registra el canal intentado; no hay motivo ni reagendamiento.
 const cierreSchema = z
   .object({
     citaId: z.uuid('Cita inválida'),
-    motivo: z.enum(MOTIVOS_AUSENCIA, { message: 'Seleccione el motivo' }),
+    respuesta: z.enum(RESPUESTAS).default('Responde'),
+    motivo: z.enum(MOTIVOS_AUSENCIA, { message: 'Seleccione el motivo' }).nullable().optional(),
     observacion: z.string().trim().max(1000).optional(),
-    canalContacto: z.enum(CANALES_CONTACTO, { message: 'Seleccione el canal de contacto' }),
+    canalContacto: z.enum(CANALES_CONTACTO, { message: 'Seleccione el canal: Llamada o WhatsApp' }),
     reagendar: slotSchema.nullable().optional(),
   })
-  .refine((d) => d.motivo !== 'Otros' || (d.observacion?.length ?? 0) >= 3, {
+  .refine((d) => d.respuesta === 'No responde' || d.motivo, { message: 'Seleccione el motivo', path: ['motivo'] })
+  .refine((d) => d.respuesta === 'No responde' || d.motivo !== 'Otros' || (d.observacion?.length ?? 0) >= 3, {
     message: 'Describa el motivo en la observación',
     path: ['observacion'],
+  })
+  .refine((d) => d.respuesta === 'Responde' || !d.reagendar, {
+    message: 'Solo se reagenda cuando el paciente responde',
+    path: ['reagendar'],
   });
 
 cierresRouter.post(
@@ -294,9 +397,10 @@ cierresRouter.post(
       const d = parse(cierreSchema, req.body ?? {});
       const cita = requireFound(await findCita(d.citaId));
       if (cita.estado !== 'Ausente') throw badRequest('Solo se cierran citas marcadas como Ausente');
+      const responde = d.respuesta === 'Responde';
 
       let nuevaId = null;
-      if (d.reagendar) {
+      if (responde && d.reagendar) {
         if (!hasPermission(req.user.role, 'MANAGE_APPOINTMENTS')) throw forbidden();
         nuevaId = await createCita(req.user, {
           ...d.reagendar,
@@ -308,12 +412,15 @@ cierresRouter.post(
         });
       }
       const { rows } = await db.query(
-        `INSERT INTO cierres_ausencia (organization_id, cita_id, motivo, observacion, canal_contacto, usuario_id, reagendo, cita_reagendada_id)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id`,
-        [req.user.organizationId, cita.id, d.motivo, d.observacion || null, d.canalContacto, req.user.id, Boolean(nuevaId), nuevaId],
+        `INSERT INTO cierres_ausencia (organization_id, cita_id, respuesta, motivo, observacion, canal_contacto, usuario_id, reagendo, cita_reagendada_id)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id`,
+        [req.user.organizationId, cita.id, d.respuesta, responde ? d.motivo : null, d.observacion || null, d.canalContacto, req.user.id, Boolean(nuevaId), nuevaId],
       );
       res.locals.status = 201;
-      res.locals.audit = { entityId: rows[0].id, metadata: { citaId: cita.id, motivo: d.motivo, reagendo: Boolean(nuevaId) } };
+      res.locals.audit = {
+        entityId: rows[0].id,
+        metadata: { citaId: cita.id, respuesta: d.respuesta, motivo: responde ? d.motivo : null, canal: d.canalContacto, reagendo: Boolean(nuevaId) },
+      };
       return { id: rows[0].id, nuevaCita: nuevaId ? mapCita(await findCita(nuevaId)) : null };
     },
     { audit: 'AUSENCIA_CERRADA', entityType: 'cierre_ausencia' },

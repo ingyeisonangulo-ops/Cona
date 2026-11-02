@@ -145,7 +145,7 @@ export default function PacientesPage() {
           <EmptyState icon={UserRound} title="Sin resultados" />
         </Card>
       ) : (
-        <Card className="p-0 md:p-0">
+        <Card flush>
           <TableWrap>
             <thead>
               <tr>

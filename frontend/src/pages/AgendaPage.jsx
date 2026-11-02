@@ -16,6 +16,45 @@ import { Alert, Badge, Button, Card, ConfirmModal, EmptyState, IconButton, Input
 import { get, patch, post } from '../lib/api.js';
 import { useResource } from '../lib/useResource.js';
 
+const DIA_CORTO = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+
+// Selector de semana: lunes a domingo de la fecha elegida, con flechas por semana.
+function WeekStrip({ fecha, onChange }) {
+  const hoy = todayBogota();
+  const dow = new Date(`${fecha}T12:00:00Z`).getUTCDay();
+  const lunes = addDays(fecha, -((dow + 6) % 7));
+  const dias = Array.from({ length: 7 }, (_, i) => addDays(lunes, i));
+  return (
+    <div className="flex items-center gap-1">
+      <div className="hidden md:block">
+        <IconButton label="Semana anterior" icon={ChevronLeft} onClick={() => onChange(addDays(fecha, -7))} />
+      </div>
+      <div className="scrollbar-none grid flex-1 grid-cols-7 gap-1 overflow-x-auto">
+        {dias.map((d, i) => {
+          const sel = d === fecha;
+          return (
+            <button
+              key={d}
+              type="button"
+              aria-pressed={sel}
+              aria-label={formatFechaLarga(d)}
+              onClick={() => onChange(d)}
+              className={`flex min-h-14 min-w-0 flex-col items-center justify-center rounded-2xl transition-colors ${sel ? 'bg-primary text-white' : 'text-text hover:bg-subtle'}`}
+            >
+              <span className={`text-[11px] font-medium ${sel ? 'text-white/80' : 'text-muted'}`}>{DIA_CORTO[(i + 1) % 7]}</span>
+              <span className="tabular font-display text-base font-bold">{Number(d.slice(8, 10))}</span>
+              <span className={`mt-0.5 size-1 rounded-full ${d === hoy ? (sel ? 'bg-white' : 'bg-primary') : 'bg-transparent'}`} aria-hidden />
+            </button>
+          );
+        })}
+      </div>
+      <div className="hidden md:block">
+        <IconButton label="Semana siguiente" icon={ChevronRight} onClick={() => onChange(addDays(fecha, 7))} />
+      </div>
+    </div>
+  );
+}
+
 function NuevaCitaModal({ fecha, onClose, onSaved }) {
   const cat = useCatalogos({ convenios: false });
   const [cedula, setCedula] = useState('');
@@ -229,12 +268,12 @@ function CitaCard({ cita, onAction }) {
   const s = ALERTA_STYLES[cita.alerta];
   const abierta = ['Pendiente', 'Confirmado'].includes(cita.estado);
   return (
-    <Card className={`flex flex-col gap-3 p-4 md:p-4 ${s?.ring ?? ''}`}>
+    <Card compact className={`flex flex-col gap-3 ${s?.ring ?? ''}`}>
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="flex items-center gap-3">
-          <span className="grid size-12 shrink-0 place-items-center rounded-full bg-primary text-sm font-bold text-white">{cita.hora}</span>
+          <span className="tabular grid h-11 w-14 shrink-0 place-items-center rounded-xl bg-primary-soft text-sm font-semibold text-primary">{cita.hora}</span>
           <div className="min-w-0">
-            <p className="font-bold">{cita.paciente.nombre}</p>
+            <p className="font-semibold">{cita.paciente.nombre}</p>
             <p className="flex items-center gap-1 text-xs text-muted">
               <Phone className="size-3" aria-hidden /> {cita.paciente.telefono}
             </p>
@@ -322,22 +361,23 @@ export default function AgendaPage() {
       />
       <div className="grid gap-5 lg:grid-cols-3">
         <section className="lg:col-span-2">
-          <div className="mb-4 flex flex-wrap items-center gap-2">
-            <div className="flex items-center gap-1 rounded-xl border border-line bg-surface p-0.5">
-              <IconButton label="Día anterior" icon={ChevronLeft} onClick={() => setFecha(addDays(fecha, -1))} />
-              <input
-                type="date"
-                aria-label="Fecha"
-                value={fecha}
-                onChange={(e) => e.target.value && setFecha(e.target.value)}
-                className="touch-target rounded-lg bg-transparent px-2 text-sm font-semibold"
-              />
-              <IconButton label="Día siguiente" icon={ChevronRight} onClick={() => setFecha(addDays(fecha, 1))} />
+          <div className="mb-4 rounded-card border border-line bg-surface p-3">
+            <div className="mb-2 flex flex-wrap items-center gap-2 px-1">
+              <p className="font-display text-[15px] font-bold first-letter:uppercase">{formatFechaLarga(fecha)}</p>
+              <div className="ml-auto flex items-center gap-1">
+                <Button variant="ghost" className="px-3" onClick={() => setFecha(todayBogota())}>
+                  Hoy
+                </Button>
+                <input
+                  type="date"
+                  aria-label="Ir a una fecha"
+                  value={fecha}
+                  onChange={(e) => e.target.value && setFecha(e.target.value)}
+                  className="touch-target rounded-xl border border-line bg-subtle px-2 text-sm"
+                />
+              </div>
             </div>
-            <Button variant="ghost" onClick={() => setFecha(todayBogota())}>
-              Hoy
-            </Button>
-            <p className="w-full text-sm font-semibold capitalize text-muted md:ml-auto md:w-auto">{formatFechaLarga(fecha)}</p>
+            <WeekStrip fecha={fecha} onChange={setFecha} />
           </div>
           {dia.error && <Alert className="mb-4">{dia.error}</Alert>}
           {dia.loading && !dia.data ? (
@@ -357,8 +397,11 @@ export default function AgendaPage() {
 
         <aside aria-labelledby="alertas-title">
           <Card className="lg:sticky lg:top-24">
-            <h2 id="alertas-title" className="mb-1 flex items-center gap-2 font-bold">
-              <BellRing className="size-5 text-secondary" aria-hidden /> Alertas
+            <h2 id="alertas-title" className="mb-2 flex items-center gap-2.5 text-base font-bold">
+              <span className="grid size-9 place-items-center rounded-xl bg-secondary-soft text-secondary">
+                <BellRing className="size-[18px]" aria-hidden />
+              </span>
+              Requieren atención
             </h2>
             <div className="mb-3 flex flex-wrap gap-1.5 text-xs">
               {Object.entries(ALERTA_STYLES).map(([k, s]) => (

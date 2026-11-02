@@ -73,7 +73,7 @@ export default function AuditPage() {
           <EmptyState icon={ClipboardList} title="Sin registros" />
         </Card>
       ) : (
-        <Card className="p-0 md:p-0">
+        <Card flush>
           <TableWrap>
             <thead>
               <tr>

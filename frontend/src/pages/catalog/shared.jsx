@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { LayoutGrid, Plus, Power, PowerOff, Rows3, Search } from 'lucide-react';
-import { Button, ConfirmModal } from '../../components/ui.jsx';
+import { Button, ConfirmModal, IconButton } from '../../components/ui.jsx';
 import { patch } from '../../lib/api.js';
 
 export function Toolbar({ q, setQ, status, setStatus, view, setView, onCreate, createLabel, placeholder }) {
@@ -60,9 +60,12 @@ export function Toolbar({ q, setQ, status, setStatus, view, setView, onCreate, c
 export function StatusToggleButton({ item, onClick }) {
   const active = item.status === 'active';
   return (
-    <Button variant={active ? 'danger' : 'outline'} icon={active ? PowerOff : Power} onClick={onClick} className="px-3">
-      {active ? 'Desactivar' : 'Activar'}
-    </Button>
+    <IconButton
+      label={active ? 'Desactivar' : 'Activar'}
+      icon={active ? PowerOff : Power}
+      onClick={onClick}
+      className={active ? 'hover:bg-secondary-soft hover:text-secondary' : 'hover:bg-success-soft hover:text-success'}
+    />
   );
 }
 

@@ -13,12 +13,12 @@ export function AuthShell({ children }) {
         <aside className="relative flex flex-col justify-between gap-8 overflow-hidden bg-primary p-6 text-white md:p-10">
           <div aria-hidden className="pointer-events-none absolute -right-20 -top-20 size-64 rounded-full bg-white/10" />
           <div aria-hidden className="pointer-events-none absolute -bottom-24 -left-16 size-72 rounded-full bg-brand-dark/40" />
-          <div className="relative">
-            <Logo inverted />
+          <div className="relative max-w-[18rem]">
+            <Logo variant="completo" onDark />
           </div>
           <div className="relative hidden md:block">
             <p className="text-sm font-semibold uppercase tracking-[0.16em] text-white/70">IPS Centro Odontológico</p>
-            <h1 className="mt-3 text-3xl font-extrabold leading-tight">
+            <h1 className="mt-3 font-sans text-3xl font-extrabold leading-tight tracking-normal">
               Cada sonrisa es un
               <br /> nuevo amanecer.
             </h1>
@@ -65,7 +65,7 @@ export default function LoginPage() {
 
   return (
     <AuthShell>
-      <h2 className="text-2xl font-bold tracking-tight text-text">Iniciar sesión</h2>
+      <h2 className="font-sans text-2xl font-bold tracking-tight text-text">Iniciar sesión</h2>
       <p className="mt-1 text-sm text-muted">Ingrese con su correo institucional.</p>
 
       <form onSubmit={onSubmit} className="mt-6 flex flex-col gap-4" noValidate>

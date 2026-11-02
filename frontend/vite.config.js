@@ -14,7 +14,7 @@ export default defineConfig({
       injectRegister: false,
       registerType: 'prompt',
       devOptions: { enabled: false },
-      includeAssets: ['favicon.svg', 'icons/apple-touch-icon-180.png'],
+      includeAssets: ['favicon.png', 'icons/apple-touch-icon-180.png', 'brand/*.png'],
       manifest: {
         id: '/',
         name: 'Nuevo Amanecer del Pacífico — CRM',

@@ -336,12 +336,16 @@ try {
   // Si existe un backend/.env real, ninguno de sus valores debe estar en el bundle.
   const envFile = path.join(BACKEND, '.env');
   if (existsSync(envFile)) {
-    const values = readFileSync(envFile, 'utf8')
-      .split('\n')
-      .map((l) => l.match(/^[A-Z0-9_]+=(.+)$/)?.[1]?.trim().replace(/^["']|["']$/g, ''))
-      .filter((v) => v && v.length >= 10 && !/^(true|false|development|production|disable|require|verify-full)$/.test(v) && !/^https?:\/\/localhost/.test(v));
-    const leaked = values.filter((v) => bundle.includes(v));
-    h.check(leaked.length === 0, `Ningún valor de backend/.env en el bundle (${values.length} revisados)`);
+    // Solo variables secretas: valores públicos (nombre de la IPS, NODE_ENV) pueden
+    // aparecer legítimamente en la interfaz. Se reporta el NOMBRE, nunca el valor.
+    const secretos = readFileSync(envFile, 'utf8')
+      .split(/\r?\n/)
+      .map((l) => l.match(/^([A-Z0-9_]+)=(.+)$/))
+      .filter((m) => m && /PASSWORD|SECRET|TOKEN|KEY|DATABASE_URL/.test(m[1]))
+      .map((m) => [m[1], m[2].trim().replace(/^["']|["']$/g, '')])
+      .filter(([, v]) => v.length >= 6);
+    const leaked = secretos.filter(([, v]) => bundle.includes(v)).map(([k]) => k);
+    h.check(leaked.length === 0, `Ningún secreto de backend/.env en el bundle (${secretos.length} revisados)${leaked.length ? `: ${leaked.join(', ')}` : ''}`);
   } else {
     console.log('  (backend/.env no existe: se omite la comparación con valores reales)');
   }

@@ -6,7 +6,7 @@ import { IconButton, Spinner } from './ui.jsx';
 export const MESES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
 export const MEDIOS_ORIGEN = ['Redes Sociales', 'Televisión', 'Referido', 'Otro'];
 export const MOTIVOS_AUSENCIA = ['Imprevisto', 'Falta de dinero', 'Tiempo', 'No recordaba', 'Otros'];
-export const CANALES_CONTACTO = ['Llamada', 'WhatsApp', 'SMS', 'Correo electrónico', 'Presencial'];
+export const CANALES_CONTACTO = ['Llamada', 'WhatsApp'];
 
 // Fechas de calendario en la zona de la clínica.
 export function todayBogota() {
@@ -47,26 +47,26 @@ export function MonthPicker({ periodo, onMove }) {
 
 // Colores de alerta de citas (amarillo 2 días, naranja 1 día / hoy, rojo vencida).
 export const ALERTA_STYLES = {
-  amarillo: { ring: 'border-l-4 border-l-amber-400', badge: 'bg-amber-100 text-amber-800', label: 'En 2 días' },
-  naranja: { ring: 'border-l-4 border-l-orange-500', badge: 'bg-orange-100 text-orange-800', label: 'Mañana / hoy' },
-  rojo: { ring: 'border-l-4 border-l-secondary', badge: 'bg-secondary-soft text-secondary', label: 'Vencida' },
+  amarillo: { ring: 'border-l-[3px] border-l-amber-400', badge: 'bg-amber-50 text-amber-700 ring-1 ring-amber-200', label: 'En 2 días' },
+  naranja: { ring: 'border-l-[3px] border-l-orange-500', badge: 'bg-orange-50 text-orange-700 ring-1 ring-orange-200', label: 'Mañana / hoy' },
+  rojo: { ring: 'border-l-[3px] border-l-secondary', badge: 'bg-secondary-soft text-secondary ring-1 ring-secondary/20', label: 'Vencida' },
 };
 
 export function AlertaBadge({ alerta }) {
   const s = ALERTA_STYLES[alerta];
   if (!s) return null;
-  return <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-bold ${s.badge}`}>{s.label}</span>;
+  return <span className={`inline-flex whitespace-nowrap rounded-lg px-2 py-0.5 text-xs font-medium ${s.badge}`}>{s.label}</span>;
 }
 
 const ESTADO_STYLES = {
-  Pendiente: 'bg-bg text-muted',
+  Pendiente: 'bg-subtle text-muted ring-1 ring-line',
   Confirmado: 'bg-primary-soft text-primary',
-  Aplazado: 'bg-amber-50 text-amber-700',
+  Aplazado: 'bg-warning-soft text-warning',
   Cumplida: 'bg-success-soft text-success',
   Ausente: 'bg-secondary-soft text-secondary',
 };
 export function EstadoBadge({ estado }) {
-  return <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${ESTADO_STYLES[estado] ?? ''}`}>{estado}</span>;
+  return <span className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg px-2 py-0.5 text-xs font-medium ${ESTADO_STYLES[estado] ?? ''}`}><span className="size-1.5 rounded-full bg-current" aria-hidden />{estado}</span>;
 }
 
 /** Selector de fecha + slots de 30 min; deshabilita ocupados y pasados. */
@@ -143,7 +143,7 @@ export function ProgressBar({ value, max, tone = 'primary', label }) {
   const pct = max ? Math.min(100, (value / max) * 100) : 0;
   const color = tone === 'secondary' ? 'bg-secondary' : tone === 'success' ? 'bg-success' : 'bg-primary';
   return (
-    <div className="h-2.5 w-full overflow-hidden rounded-full bg-bg" role="progressbar" aria-valuenow={Math.round(pct)} aria-valuemin={0} aria-valuemax={100} aria-label={label}>
+    <div className="h-2 w-full overflow-hidden rounded-full bg-subtle ring-1 ring-inset ring-line/60" role="progressbar" aria-valuenow={Math.round(pct)} aria-valuemin={0} aria-valuemax={100} aria-label={label}>
       <div className={`h-full rounded-full ${color} transition-[width]`} style={{ width: `${pct}%` }} />
     </div>
   );
