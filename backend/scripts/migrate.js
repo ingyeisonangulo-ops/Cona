@@ -20,12 +20,25 @@ function requireEnv(name) {
 async function ensureAppRole(client, password) {
   if (password.length < 16) throw new Error('APP_DB_PASSWORD debe tener al menos 16 caracteres');
   const { rows } = await client.query('SELECT 1 FROM pg_roles WHERE rolname = $1', [APP_ROLE]);
-  const verb = rows.length ? 'ALTER' : 'CREATE';
   // DDL de roles no admite placeholders: se escapa el literal con la utilidad de pg.
   const pwd = client.escapeLiteral(password);
-  await client.query(
-    `${verb} ROLE ${APP_ROLE} WITH LOGIN NOSUPERUSER NOBYPASSRLS NOCREATEDB NOCREATEROLE NOREPLICATION PASSWORD ${pwd}`,
-  );
+  if (rows.length) {
+    // Solo se actualiza la contraseña: en servicios administrados (Neon) el dueño
+    // no es superusuario y no puede tocar SUPERUSER/BYPASSRLS/REPLICATION de otro
+    // rol, ni siquiera para quitarlos.
+    await client.query(`ALTER ROLE ${APP_ROLE} WITH LOGIN PASSWORD ${pwd}`);
+  } else {
+    await client.query(
+      `CREATE ROLE ${APP_ROLE} WITH LOGIN NOSUPERUSER NOBYPASSRLS NOCREATEDB NOCREATEROLE NOREPLICATION PASSWORD ${pwd}`,
+    );
+  }
+  // El rol de la app nunca puede saltarse RLS (también lo verifica la API al arrancar).
+  const attrs = (
+    await client.query('SELECT rolsuper, rolbypassrls, rolcreaterole, rolcreatedb FROM pg_roles WHERE rolname = $1', [APP_ROLE])
+  ).rows[0];
+  if (attrs.rolsuper || attrs.rolbypassrls || attrs.rolcreaterole || attrs.rolcreatedb) {
+    throw new Error(`El rol ${APP_ROLE} tiene privilegios elevados; corríjalo manualmente antes de migrar.`);
+  }
   const db = (await client.query('SELECT current_database() AS name')).rows[0].name;
   await client.query(`GRANT CONNECT ON DATABASE ${client.escapeIdentifier(db)} TO ${APP_ROLE}`);
 }
