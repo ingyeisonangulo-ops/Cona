@@ -1,10 +1,10 @@
 import { useState } from 'react';
-import { FolderTree, Pencil } from 'lucide-react';
-import { IconButton, Alert, Button, Card, EmptyState, Input, Modal, Spinner, StatusBadge } from '../../components/ui.jsx';
+import { FolderTree } from 'lucide-react';
+import { Alert, Button, Card, EmptyState, Input, Modal, Spinner, StatusBadge, TableWrap, td, th } from '../../components/ui.jsx';
 import { post, put } from '../../lib/api.js';
 import { formatNumber } from '../../lib/format.js';
 import { useResource } from '../../lib/useResource.js';
-import { StatusToggleButton, Toolbar, qs, useDebounced, useStatusToggle } from './shared.jsx';
+import { RowActions, Toolbar, qs, useDebounced, useStatusToggle } from './shared.jsx';
 
 function CategoriaModal({ initial, onClose, onSaved }) {
   const [nombre, setNombre] = useState(initial?.nombre ?? '');
@@ -78,28 +78,41 @@ export default function CategoriasTab({ canWrite }) {
           <EmptyState icon={FolderTree} title="No hay categorías" />
         </Card>
       ) : (
-        <div className="grid gap-3 xs:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-          {list.map((c) => (
-            <Card key={c.id} compact className="flex flex-col gap-3">
-              <div className="flex items-start gap-3">
-                <span className="grid size-9 shrink-0 place-items-center rounded-full bg-primary text-white">
-                  <FolderTree className="size-5" aria-hidden />
-                </span>
-                <div className="min-w-0 flex-1">
-                  <h3 className="text-sm font-bold leading-snug">{c.nombre}</h3>
-                  <p className="text-xs text-muted">{formatNumber(c.serviciosCount)} servicio(s)</p>
-                </div>
-                <StatusBadge status={c.status} />
-              </div>
-              {canWrite && (
-                <div className="mt-auto flex justify-end gap-1 border-t border-line pt-2">
-                  <IconButton label="Editar" icon={Pencil} onClick={() => setEditing(c)} className="hover:bg-primary-soft hover:text-primary" />
-                  <StatusToggleButton item={c} onClick={() => toggle.ask(c)} />
-                </div>
-              )}
-            </Card>
-          ))}
-        </div>
+        <Card flush>
+          <TableWrap>
+            <thead>
+              <tr>
+                <th className={th}>Categoría</th>
+                <th className={`${th} text-right`}>Servicios</th>
+                <th className={th}>Estado</th>
+                {canWrite && <th className={`${th} text-right`}>Acciones</th>}
+              </tr>
+            </thead>
+            <tbody>
+              {list.map((c) => (
+                <tr key={c.id} className="hover:bg-subtle/60">
+                  <td className={td}>
+                    <span className="flex items-center gap-3">
+                      <span className="grid size-8 shrink-0 place-items-center rounded-xl bg-primary-soft text-primary">
+                        <FolderTree className="size-4" aria-hidden />
+                      </span>
+                      <span className="font-semibold">{c.nombre}</span>
+                    </span>
+                  </td>
+                  <td className={`${td} tabular text-right`}>{formatNumber(c.serviciosCount)}</td>
+                  <td className={td}>
+                    <StatusBadge status={c.status} />
+                  </td>
+                  {canWrite && (
+                    <td className={td}>
+                      <RowActions item={c} onEdit={() => setEditing(c)} onToggle={() => toggle.ask(c)} />
+                    </td>
+                  )}
+                </tr>
+              ))}
+            </tbody>
+          </TableWrap>
+        </Card>
       )}
       {canWrite && editing !== undefined && (
         <CategoriaModal

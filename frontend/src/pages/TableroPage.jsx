@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { BadgePercent, CircleDollarSign, Repeat, Stethoscope, TrendingDown, TrendingUp, UserPlus, Users, Wallet } from 'lucide-react';
+import { BadgePercent, CircleDollarSign, Receipt, Repeat, Stethoscope, TrendingDown, TrendingUp, Users, Wallet } from 'lucide-react';
 import { MonthPicker, formatFecha, todayBogota, usePeriodo } from '../components/business.jsx';
 import { AreaChart, DonutChart, Meter, OTHER, SERIES, STATUS_COLORS, formatCompact } from '../components/charts.jsx';
 import { Alert, Avatar, Badge, Card, PageHeader, Sparkline, Spinner, StatCard, TableWrap, td, th } from '../components/ui.jsx';
@@ -75,6 +75,14 @@ export default function TableroPage() {
               <Sparkline values={t.serieDiaria.filter((d) => d.fecha <= todayBogota()).map((d) => d.ingreso)} className="-mb-1" />
             </StatCard>
             <StatCard
+              label="Costos"
+              value={formatCOP(t.kpis.costoTotal)}
+              delta={t.kpis.ingresoTotal ? `${Math.round((t.kpis.costoTotal / t.kpis.ingresoTotal) * 1000) / 10}%` : undefined}
+              hint={t.kpis.ingresoTotal ? 'de los ingresos' : 'sin ingresos en el mes'}
+              icon={Receipt}
+              tone="warning"
+            />
+            <StatCard
               label="Utilidad neta"
               value={formatCOP(t.kpis.utilidadNeta)}
               delta={`${t.kpis.margen}%`}
@@ -89,14 +97,6 @@ export default function TableroPage() {
               hint={`· ${t.kpis.pacientesAtendidos} pacientes`}
               icon={Stethoscope}
               tone="teal"
-            />
-            <StatCard
-              label="Pacientes nuevos"
-              value={formatNumber(t.kpis.pacientesNuevos)}
-              delta={variacion(t.kpis.pacientesNuevos, t.anterior.pacientesNuevos)}
-              hint="vs mes anterior"
-              icon={UserPlus}
-              tone="violet"
             />
           </section>
 

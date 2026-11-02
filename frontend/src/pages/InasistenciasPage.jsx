@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { CalendarX2, MessageCircle, Phone, PhoneOff, UserCheck } from 'lucide-react';
+import { CalendarX2, ChartColumn, ListChecks, MessageCircle, Phone, PhoneOff, UserCheck } from 'lucide-react';
 import { CANALES_CONTACTO, MOTIVOS_AUSENCIA, MonthPicker, SlotPicker, addDays, formatFecha, todayBogota, usePeriodo } from '../components/business.jsx';
 import { ColumnChart, STATUS_COLORS } from '../components/charts.jsx';
 import { Alert, Badge, Button, Card, EmptyState, Modal, PageHeader, Segmented, Select, Spinner, TableWrap, Textarea, td, th } from '../components/ui.jsx';
@@ -156,6 +156,7 @@ const FILTROS = ['all', 'Pendiente', 'Responde', 'No responde'];
 
 export default function InasistenciasPage() {
   const [periodo, move] = usePeriodo();
+  const [tab, setTab] = useState('estados');
   const [filtro, setFiltro] = useState('all');
   const [seleccion, setSeleccion] = useState(null);
   const q = `anio=${periodo.anio}&mes=${periodo.mes}`;
@@ -186,7 +187,20 @@ export default function InasistenciasPage() {
         <Alert className="mb-4">Hay {pendientesOtrosMeses} inasistencia(s) pendiente(s) de seguimiento en otros meses.</Alert>
       )}
 
-      <section aria-labelledby="graficas" className="mb-8">
+      <Segmented
+        label="Secciones de inasistencias"
+        className="mb-5"
+        value={tab}
+        onChange={setTab}
+        options={[
+          { value: 'estados', label: 'Estados', icon: ChartColumn },
+          { value: 'seguimientos', label: 'Seguimientos del mes', icon: ListChecks },
+        ]}
+      />
+
+      {tab === 'estados' && (
+
+      <section aria-labelledby="graficas">
         <h2 id="graficas" className="sr-only">
           Gráficas
         </h2>
@@ -211,10 +225,12 @@ export default function InasistenciasPage() {
           </div>
         ) : null}
       </section>
+      )}
 
+      {tab === 'seguimientos' && (
       <section aria-labelledby="seguimientos">
-        <div className="mb-3 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-          <h2 id="seguimientos" className="text-lg font-bold">
+        <div className="mb-4">
+          <h2 id="seguimientos" className="sr-only">
             Seguimientos del mes
           </h2>
           <Segmented
@@ -289,6 +305,7 @@ export default function InasistenciasPage() {
           </Card>
         )}
       </section>
+      )}
 
       {seleccion && (
         <CierreModal

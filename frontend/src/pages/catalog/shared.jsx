@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
-import { LayoutGrid, Plus, Power, PowerOff, Rows3, Search } from 'lucide-react';
+import { Pencil, Plus, Power, PowerOff, Search } from 'lucide-react';
 import { Button, ConfirmModal, IconButton } from '../../components/ui.jsx';
 import { patch } from '../../lib/api.js';
 
-export function Toolbar({ q, setQ, status, setStatus, view, setView, onCreate, createLabel, placeholder }) {
+export function Toolbar({ q, setQ, status, setStatus, onCreate, createLabel, placeholder }) {
   return (
     <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center">
       <label className="relative flex-1">
@@ -28,31 +28,22 @@ export function Toolbar({ q, setQ, status, setStatus, view, setView, onCreate, c
           <option value="inactive">Inactivos</option>
           <option value="all">Todos</option>
         </select>
-        {setView && (
-          <div className="flex rounded-xl border border-line bg-surface p-0.5" role="group" aria-label="Vista">
-            {[
-              ['grid', LayoutGrid, 'Tarjetas'],
-              ['table', Rows3, 'Tabla'],
-            ].map(([v, Icon, label]) => (
-              <button
-                key={v}
-                type="button"
-                aria-label={label}
-                aria-pressed={view === v}
-                onClick={() => setView(v)}
-                className={`touch-target grid place-items-center rounded-[10px] ${view === v ? 'bg-primary text-white' : 'text-muted hover:text-primary'}`}
-              >
-                <Icon className="size-4" aria-hidden />
-              </button>
-            ))}
-          </div>
-        )}
         {onCreate && (
           <Button icon={Plus} onClick={onCreate} className="whitespace-nowrap">
             <span className="hidden xs:inline">{createLabel}</span>
           </Button>
         )}
       </div>
+    </div>
+  );
+}
+
+// Acciones de una fila del catálogo: editar y activar/desactivar.
+export function RowActions({ item, onEdit, onToggle }) {
+  return (
+    <div className="flex justify-end gap-1">
+      <IconButton label="Editar" icon={Pencil} onClick={onEdit} className="hover:bg-primary-soft hover:text-primary" />
+      <StatusToggleButton item={item} onClick={onToggle} />
     </div>
   );
 }

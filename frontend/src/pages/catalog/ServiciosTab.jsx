@@ -1,10 +1,10 @@
 import { useState } from 'react';
-import { Pencil, Stethoscope } from 'lucide-react';
-import { IconButton, Alert, Badge, Button, Card, EmptyState, Input, Modal, Select, Spinner, StatusBadge, TableWrap, td, th } from '../../components/ui.jsx';
+import { Stethoscope } from 'lucide-react';
+import { Alert, Badge, Button, Card, EmptyState, Input, Modal, Segmented, Select, Spinner, StatusBadge, TableWrap, td, th } from '../../components/ui.jsx';
 import { post, put } from '../../lib/api.js';
 import { formatCOP, formatNumber } from '../../lib/format.js';
 import { useResource } from '../../lib/useResource.js';
-import { StatusToggleButton, Toolbar, qs, useDebounced, useStatusToggle } from './shared.jsx';
+import { RowActions, Toolbar, qs, useDebounced, useStatusToggle } from './shared.jsx';
 
 const EMPTY = { categoriaId: '', nombre: '', valorPublico: '', costoClinica: '', puntos: '0' };
 
@@ -96,23 +96,17 @@ function ServicioModal({ initial, categorias, onClose, onSaved }) {
 export default function ServiciosTab({ canWrite, showMoney }) {
   const [q, setQ] = useState('');
   const [status, setStatus] = useState('active');
-  const [view, setView] = useState('grid');
+  const [categoriaId, setCategoriaId] = useState('');
   const [editing, setEditing] = useState(undefined); // undefined: cerrado · null: nuevo
   const debounced = useDebounced(q);
 
-  const servicios = useResource(`/servicios${qs({ status, q: debounced })}`);
+  const servicios = useResource(`/servicios${qs({ status, q: debounced, categoriaId })}`);
   const categorias = useResource('/categorias?status=all');
   const toggle = useStatusToggle('/servicios', 'servicio', servicios.reload);
 
   const list = servicios.data?.servicios ?? [];
-
-  const actions = (s) =>
-    canWrite && (
-      <div className="flex justify-end gap-1">
-        <IconButton label="Editar" icon={Pencil} onClick={() => setEditing(s)} className="hover:bg-primary-soft hover:text-primary" />
-        <StatusToggleButton item={s} onClick={() => toggle.ask(s)} />
-      </div>
-    );
+  const catList = categorias.data?.categorias ?? [];
+  const filtroCategorias = catList.filter((c) => c.status === 'active' || c.id === categoriaId);
 
   return (
     <>
@@ -121,54 +115,29 @@ export default function ServiciosTab({ canWrite, showMoney }) {
         setQ={setQ}
         status={status}
         setStatus={setStatus}
-        view={view}
-        setView={setView}
         placeholder="Buscar servicio…"
         onCreate={canWrite ? () => setEditing(null) : null}
         createLabel="Nuevo servicio"
       />
+      {filtroCategorias.length > 0 && (
+        <Segmented
+          label="Filtrar por categoría"
+          size="sm"
+          className="scrollbar-none mb-4 max-w-full"
+          value={categoriaId}
+          onChange={setCategoriaId}
+          options={[{ value: '', label: 'Todas' }, ...filtroCategorias.map((c) => ({ value: c.id, label: c.nombre }))]}
+        />
+      )}
       {servicios.error && <Alert className="mb-4">{servicios.error}</Alert>}
       {servicios.loading && !servicios.data ? (
         <Spinner />
       ) : list.length === 0 ? (
         <Card>
           <EmptyState icon={Stethoscope} title="No hay servicios">
-            {canWrite ? 'Cree el primer servicio del catálogo.' : 'Aún no hay servicios con este filtro.'}
+            {canWrite && !categoriaId && !debounced ? 'Cree el primer servicio del catálogo.' : 'No hay servicios con este filtro.'}
           </EmptyState>
         </Card>
-      ) : view === 'grid' ? (
-        <div className="grid gap-3 md:grid-cols-3 xl:grid-cols-4">
-          {list.map((s) => (
-            <Card key={s.id} compact className="flex flex-col gap-3">
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <Badge>{s.categoriaNombre}</Badge>
-                  <h3 className="mt-1.5 text-sm font-bold leading-snug text-text">{s.nombre}</h3>
-                </div>
-                <StatusBadge status={s.status} />
-              </div>
-              <dl className="grid grid-cols-3 gap-2 text-xs">
-                {showMoney && (
-                  <>
-                    <div>
-                      <dt className="text-xs text-muted">Público</dt>
-                      <dd className="font-bold text-primary">{formatCOP(s.valorPublico)}</dd>
-                    </div>
-                    <div>
-                      <dt className="text-xs text-muted">Costo</dt>
-                      <dd className="font-semibold">{formatCOP(s.costoClinica)}</dd>
-                    </div>
-                  </>
-                )}
-                <div>
-                  <dt className="text-xs text-muted">Puntos</dt>
-                  <dd className="font-semibold">{formatNumber(s.puntos)}</dd>
-                </div>
-              </dl>
-              {canWrite && <div className="mt-auto border-t border-line pt-3">{actions(s)}</div>}
-            </Card>
-          ))}
-        </div>
       ) : (
         <Card flush>
           <TableWrap>
@@ -180,21 +149,27 @@ export default function ServiciosTab({ canWrite, showMoney }) {
                 {showMoney && <th className={`${th} text-right`}>Costo clínica</th>}
                 <th className={`${th} text-right`}>Puntos</th>
                 <th className={th}>Estado</th>
-                {canWrite && <th className={th}>Acciones</th>}
+                {canWrite && <th className={`${th} text-right`}>Acciones</th>}
               </tr>
             </thead>
             <tbody>
               {list.map((s) => (
-                <tr key={s.id} className="hover:bg-bg/60">
+                <tr key={s.id} className="hover:bg-subtle/60">
                   <td className={`${td} font-semibold`}>{s.nombre}</td>
-                  <td className={td}>{s.categoriaNombre}</td>
-                  {showMoney && <td className={`${td} text-right font-semibold text-primary`}>{formatCOP(s.valorPublico)}</td>}
-                  {showMoney && <td className={`${td} text-right`}>{formatCOP(s.costoClinica)}</td>}
-                  <td className={`${td} text-right`}>{formatNumber(s.puntos)}</td>
+                  <td className={td}>
+                    <Badge tone="muted">{s.categoriaNombre}</Badge>
+                  </td>
+                  {showMoney && <td className={`${td} tabular text-right font-semibold`}>{formatCOP(s.valorPublico)}</td>}
+                  {showMoney && <td className={`${td} tabular text-right text-muted`}>{formatCOP(s.costoClinica)}</td>}
+                  <td className={`${td} tabular text-right`}>{formatNumber(s.puntos)}</td>
                   <td className={td}>
                     <StatusBadge status={s.status} />
                   </td>
-                  {canWrite && <td className={td}>{actions(s)}</td>}
+                  {canWrite && (
+                    <td className={td}>
+                      <RowActions onEdit={() => setEditing(s)} item={s} onToggle={() => toggle.ask(s)} />
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>
@@ -205,7 +180,7 @@ export default function ServiciosTab({ canWrite, showMoney }) {
       {canWrite && editing !== undefined && (
         <ServicioModal
           initial={editing}
-          categorias={categorias.data?.categorias ?? []}
+          categorias={catList}
           onClose={() => setEditing(undefined)}
           onSaved={() => {
             setEditing(undefined);

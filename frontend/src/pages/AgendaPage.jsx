@@ -316,6 +316,7 @@ function CitaCard({ cita, onAction }) {
 export default function AgendaPage() {
   const [fecha, setFecha] = useState(todayBogota());
   const [nueva, setNueva] = useState(false);
+  const [filtroAlerta, setFiltroAlerta] = useState(null); // amarillo | naranja | rojo | null (todas)
   const [action, setAction] = useState(null); // { kind, cita }
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState('');
@@ -347,6 +348,7 @@ export default function AgendaPage() {
 
   const citas = dia.data?.citas ?? [];
   const listaAlertas = alertas.data?.citas ?? [];
+  const alertasVisibles = filtroAlerta ? listaAlertas.filter((c) => c.alerta === filtroAlerta) : listaAlertas;
 
   return (
     <>
@@ -403,20 +405,31 @@ export default function AgendaPage() {
               </span>
               Requieren atención
             </h2>
-            <div className="mb-3 flex flex-wrap gap-1.5 text-xs">
-              {Object.entries(ALERTA_STYLES).map(([k, s]) => (
-                <span key={k} className={`rounded-full px-2 py-0.5 font-semibold ${s.badge}`}>
-                  {s.label}
-                </span>
-              ))}
+            <div role="group" aria-label="Filtrar alertas" className="mb-3 flex flex-wrap gap-1.5 text-xs">
+              {Object.entries(ALERTA_STYLES).map(([k, s]) => {
+                const activo = filtroAlerta === k;
+                const n = listaAlertas.filter((c) => c.alerta === k).length;
+                return (
+                  <button
+                    key={k}
+                    type="button"
+                    aria-pressed={activo}
+                    onClick={() => setFiltroAlerta(activo ? null : k)}
+                    className={`touch-target inline-flex items-center gap-1.5 rounded-full px-3 font-semibold transition ${s.badge} ${activo ? 'outline-2 outline-offset-1 outline-current' : filtroAlerta ? 'opacity-55 hover:opacity-100' : ''}`}
+                  >
+                    {s.label}
+                    <span className="tabular rounded-full bg-white/80 px-1.5">{n}</span>
+                  </button>
+                );
+              })}
             </div>
             {alertas.loading && !alertas.data ? (
               <Spinner />
-            ) : listaAlertas.length === 0 ? (
-              <p className="text-sm text-muted">No hay citas próximas ni vencidas pendientes.</p>
+            ) : alertasVisibles.length === 0 ? (
+              <p className="text-sm text-muted">{filtroAlerta ? `No hay citas en «${ALERTA_STYLES[filtroAlerta].label}».` : 'No hay citas próximas ni vencidas pendientes.'}</p>
             ) : (
               <ul className="flex max-h-[60dvh] flex-col gap-2 overflow-y-auto">
-                {listaAlertas.map((c) => (
+                {alertasVisibles.map((c) => (
                   <li key={c.id}>
                     <button
                       type="button"
