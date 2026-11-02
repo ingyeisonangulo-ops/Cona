@@ -6,7 +6,40 @@ Módulos: autenticación y sesiones, usuarios y roles (`matrix.json`), bitácora
 
 ---
 
-## 1. Despliegue en Railway
+## 1. Despliegue en Vercel + Neon (PostgreSQL)
+
+Todo queda en **un solo dominio** de Vercel (necesario para las cookies `SameSite=Strict`): el frontend se sirve como sitio estático y la API Express corre como función (`api/index.js`). `vercel.json` reescribe `/api/*` a la función, el resto a `index.html`, y añade las cabeceras de seguridad (CSP, HSTS…). La base de datos es **Neon** (PostgreSQL administrado), que se crea y conecta desde el panel de Vercel.
+
+1. **Suba el repositorio a GitHub** (privado) y en Vercel elija **Add New → Project → Import** ese repositorio. Deje la raíz del repo como *Root Directory*; `vercel.json` define instalación, build y salida (no cambie esos campos en el panel).
+2. **Base de datos:** en el proyecto, **Storage → Create Database → Neon**. Elija la región **US East (Washington, D.C.)**, igual que las funciones (`iad1`), y conéctela al proyecto. Vercel agrega variables como `DATABASE_URL` (con *pooler*) y `DATABASE_URL_UNPOOLED` (directa) con el usuario dueño.
+3. **Variables de entorno** (Settings → Environment Variables, entorno *Production*):
+
+   | Variable | Valor |
+   |---|---|
+   | `NODE_ENV` | `production` |
+   | `APP_ORIGIN` | URL pública exacta, p. ej. `https://cona-crm.vercel.app` (o su dominio propio) |
+   | `MIGRATION_DATABASE_URL` | el valor de `DATABASE_URL_UNPOOLED` (usuario dueño, conexión directa: migraciones y seed) |
+   | `APP_DB_PASSWORD` | 32+ caracteres aleatorios (Neon exige contraseñas de alta entropía; use el comando de la sección 3). Es la contraseña del rol `crm_app`, que crea la migración |
+   | `APP_DATABASE_URL` | la URL **con pooler** cambiando usuario y contraseña: `postgresql://crm_app:<APP_DB_PASSWORD>@<host-pooler>/<db>?sslmode=require` |
+   | `DB_SSL` | `verify-full` |
+   | `DB_POOL_MAX` | `3` (cada instancia de la función abre pocas conexiones) |
+   | `JWT_ACCESS_SECRET` | ≥ 32 caracteres aleatorios (comando en la sección 3) |
+
+4. **Deploy.** En el log del build deben aparecer `[migrate] … aplicada(s)` y luego la compilación del frontend. Las migraciones solo corren en despliegues de **producción**; las vistas previas (*preview*) no tocan la base. Si `APP_DATABASE_URL` aún no es válida en el primer despliegue, corríjala y use **Redeploy**.
+5. **Seed de producción** (una vez), desde su equipo con la URL directa de Neon:
+
+   ```bash
+   cd backend
+   NODE_ENV=production MIGRATION_DATABASE_URL='<DATABASE_URL_UNPOOLED>' SEED_SUPERADMIN_EMAIL=admin@clinica.co SEED_SUPERADMIN_PASSWORD='********' node scripts/seed.js
+   ```
+
+6. Abra `https://<su-proyecto>.vercel.app/api/health` → `{"status":"ok"}`. Si responde 503, revise en **Logs** el mensaje `[api]`: la API se niega a atender si `APP_DATABASE_URL` usa un rol con superusuario o `BYPASSRLS` (debe ser `crm_app`).
+
+> **Si la función no logra conectar con el pooler** usando `crm_app`, use en `APP_DATABASE_URL` el host directo (el de `DATABASE_URL_UNPOOLED`) con usuario `crm_app`; funciona igual con menos conexiones simultáneas.
+
+> **Dominio propio:** si agrega uno (Settings → Domains), cambie `APP_ORIGIN` a ese dominio y vuelva a desplegar; las peticiones que modifican datos solo se aceptan desde ese origen exacto.
+
+## 1b. Alternativa: Railway
 
 Se despliega como **un solo servicio** (Express sirve la API y el frontend compilado en el mismo dominio; necesario para las cookies `SameSite=Strict`) más un servicio **PostgreSQL**.
 
@@ -24,7 +57,7 @@ Se despliega como **un solo servicio** (Express sirve la API y el frontend compi
 
 ## 2. Migraciones
 
-- SQL versionado en `backend/migrations/NNN_nombre.sql` (001…006), aplicado por `backend/scripts/migrate.js` en orden, cada archivo en su transacción, con `pg_advisory_lock` y checksum SHA-256 (un archivo ya aplicado no puede modificarse: cree una migración nueva).
+- SQL versionado en `backend/migrations/NNN_nombre.sql` (001…008), aplicado por `backend/scripts/migrate.js` en orden, cada archivo en su transacción, con `pg_advisory_lock` y checksum SHA-256 (un archivo ya aplicado no puede modificarse: cree una migración nueva).
 - El mismo script **crea o ajusta el rol `crm_app`** (`LOGIN NOSUPERUSER NOBYPASSRLS NOCREATEDB NOCREATEROLE`) con la contraseña `APP_DB_PASSWORD`.
 - Se ejecuta automáticamente en cada `npm start`. Manualmente:
 

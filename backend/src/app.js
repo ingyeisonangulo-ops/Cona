@@ -22,7 +22,8 @@ import { tableroRouter } from './routes/tablero.js';
 export function createApp() {
   const app = express();
   app.disable('x-powered-by');
-  // Railway termina TLS en su proxy: confiar en un salto para req.ip / req.secure.
+  // El proveedor (Vercel o Railway) termina TLS en su proxy: confiar en un salto
+  // para req.ip (bloqueo por IP) y req.secure.
   app.set('trust proxy', 1);
 
   app.use(

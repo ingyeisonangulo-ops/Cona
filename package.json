@@ -1,6 +1,7 @@
 {
   "name": "nuevo-amanecer-crm",
   "private": true,
+  "type": "module",
   "description": "CRM y Tablero Gerencial — IPS Centro Odontológico Nuevo Amanecer del Pacífico SAS",
   "engines": {
     "node": ">=22.9"
