@@ -5,6 +5,7 @@
 import { readdir, readFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import pg from 'pg';
+import { describeDbUrl, fingerprint } from '../src/lib/dbTarget.js';
 import { sslOption } from '../src/lib/pgSsl.js';
 
 const APP_ROLE = 'crm_app';
@@ -12,7 +13,9 @@ const MIGRATIONS_DIR = new URL('../migrations/', import.meta.url);
 const LOCK_KEY = 727001; // pg_advisory_lock: evita migraciones concurrentes
 
 function requireEnv(name) {
-  const v = process.env[name];
+  // trim(): un espacio o salto de línea al pegar el valor en el panel no debe
+  // cambiar la contraseña ni romper la URL.
+  const v = process.env[name]?.trim();
   if (!v) throw new Error(`Falta la variable de entorno ${name}`);
   return v;
 }
@@ -41,11 +44,15 @@ async function ensureAppRole(client, password) {
   }
   const db = (await client.query('SELECT current_database() AS name')).rows[0].name;
   await client.query(`GRANT CONNECT ON DATABASE ${client.escapeIdentifier(db)} TO ${APP_ROLE}`);
+  // Debe coincidir con la huella que registra la API (api/index.js) si la conexión falla.
+  console.log(`[migrate] ${APP_ROLE}: contraseña asignada (huella ${fingerprint(password)})`);
 }
 
 async function main() {
+  const url = requireEnv('MIGRATION_DATABASE_URL');
+  console.log(`[migrate] conectando como ${describeDbUrl(url).replace(/ \(huella [^)]*\)/, '')}`);
   const client = new pg.Client({
-    connectionString: requireEnv('MIGRATION_DATABASE_URL'),
+    connectionString: url,
     ssl: sslOption(process.env.DB_SSL ?? 'verify-full'),
   });
   await client.connect();

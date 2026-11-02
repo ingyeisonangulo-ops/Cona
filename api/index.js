@@ -2,7 +2,9 @@
 // (necesario para las cookies SameSite=Strict). vercel.json reescribe /api/* aquí
 // y Express conserva la ruta original (/api/...).
 import { createApp } from '../backend/src/app.js';
+import { config } from '../backend/src/config.js';
 import { db } from '../backend/src/db.js';
+import { describeDbUrl } from '../backend/src/lib/dbTarget.js';
 
 const app = createApp();
 
@@ -16,7 +18,9 @@ export default async function handler(req, res) {
     await roleCheck;
   } catch (err) {
     roleCheck = undefined;
-    console.error(`[api] ${err.message}`);
+    // Servidor, usuario y huella de la contraseña (nunca la contraseña): se compara
+    // con la línea "[migrate] crm_app: contraseña asignada (huella …)" del build.
+    console.error(`[api] ${err.message} — conexión: ${describeDbUrl(config.db.url)}`);
     res.statusCode = 503;
     res.setHeader('Content-Type', 'application/json');
     res.setHeader('Cache-Control', 'no-store');

@@ -8,7 +8,7 @@ const schema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   PORT: z.coerce.number().int().positive().default(3000),
   APP_ORIGIN: z.url(),
-  APP_DATABASE_URL: z.string().min(1),
+  APP_DATABASE_URL: z.string().trim().min(1),
   DB_SSL: z.enum(['disable', 'require', 'verify-full']).default('verify-full'),
   DB_POOL_MAX: z.coerce.number().int().min(1).max(50).default(10),
   JWT_ACCESS_SECRET: z.string().min(32, 'JWT_ACCESS_SECRET debe tener al menos 32 caracteres'),
