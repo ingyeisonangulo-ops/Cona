@@ -24,7 +24,12 @@ export default async function handler(req, res) {
     res.statusCode = 503;
     res.setHeader('Content-Type', 'application/json');
     res.setHeader('Cache-Control', 'no-store');
-    return res.end(JSON.stringify({ error: { code: 'UNAVAILABLE', message: 'Servicio no disponible' } }));
+    // Diagnóstico mínimo para quien despliega (sin servidor ni contraseña): código
+    // de error de PostgreSQL (p. ej. 28P01 = contraseña inválida) y huella.
+    const huella = describeDbUrl(config.db.url).match(/huella (\w+)/)?.[1] ?? null;
+    return res.end(
+      JSON.stringify({ error: { code: 'UNAVAILABLE', message: 'Servicio no disponible', diagnostico: { pg: err.code ?? null, huella } } }),
+    );
   }
   return app(req, res);
 }
