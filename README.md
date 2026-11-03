@@ -20,7 +20,7 @@ Todo queda en **un solo dominio** de Vercel (necesario para las cookies `SameSit
    | `APP_ORIGIN` | URL pública exacta, p. ej. `https://cona-crm.vercel.app` (o su dominio propio) |
    | `MIGRATION_DATABASE_URL` | el valor de `DATABASE_URL_UNPOOLED` (usuario dueño, conexión directa: migraciones y seed) |
    | `APP_DB_PASSWORD` | 32+ caracteres aleatorios (Neon exige contraseñas de alta entropía; use el comando de la sección 3). Es la contraseña del rol `crm_app`, que crea la migración |
-   | `APP_DATABASE_URL` | la URL **con pooler** cambiando usuario y contraseña: `postgresql://crm_app:<APP_DB_PASSWORD>@<host-pooler>/<db>?sslmode=require` |
+   | `APP_DATABASE_URL` | la URL de Neon con el usuario **`crm_app`**: `postgresql://crm_app@<host>/<db>`. La contraseña se toma siempre de `APP_DB_PASSWORD` (si la URL trae otra, se reemplaza) |
    | `DB_SSL` | `verify-full` |
    | `DB_POOL_MAX` | `3` (cada instancia de la función abre pocas conexiones) |
    | `JWT_ACCESS_SECRET` | ≥ 32 caracteres aleatorios (comando en la sección 3) |

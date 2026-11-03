@@ -9,6 +9,7 @@ const schema = z.object({
   PORT: z.coerce.number().int().positive().default(3000),
   APP_ORIGIN: z.url(),
   APP_DATABASE_URL: z.string().trim().min(1),
+  APP_DB_PASSWORD: z.string().trim().optional(),
   DB_SSL: z.enum(['disable', 'require', 'verify-full']).default('verify-full'),
   DB_POOL_MAX: z.coerce.number().int().min(1).max(50).default(10),
   JWT_ACCESS_SECRET: z.string().min(32, 'JWT_ACCESS_SECRET debe tener al menos 32 caracteres'),
@@ -22,6 +23,21 @@ const schema = z.object({
   LOCKOUT_DURATION_MINUTES: z.coerce.number().int().min(1).default(15),
   FRONTEND_DIST: z.string().default('../frontend/dist'),
 });
+
+// Una sola fuente para la contraseña de crm_app: si existe APP_DB_PASSWORD (la
+// misma que la migración asigna al rol), reemplaza la que traiga la URL. Así no
+// hay que copiarla en dos variables.
+function appDatabaseUrl(raw, password) {
+  if (!password) return raw;
+  let u;
+  try {
+    u = new URL(raw);
+  } catch {
+    throw new Error('APP_DATABASE_URL inválida: debe empezar por postgresql://');
+  }
+  u.password = encodeURIComponent(password);
+  return u.toString();
+}
 
 function load() {
   const parsed = schema.safeParse(process.env);
@@ -45,7 +61,7 @@ function load() {
     port: env.PORT,
     appOrigin: new URL(env.APP_ORIGIN).origin,
     db: {
-      url: env.APP_DATABASE_URL,
+      url: appDatabaseUrl(env.APP_DATABASE_URL, env.APP_DB_PASSWORD),
       ssl: env.DB_SSL,
       poolMax: env.DB_POOL_MAX,
     },
