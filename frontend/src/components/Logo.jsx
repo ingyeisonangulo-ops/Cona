@@ -1,6 +1,6 @@
 // Logo oficial de CONA (IPS Centro Odontológico Nuevo Amanecer del Pacífico SAS).
 // Las imágenes se generan con `npm --prefix frontend run icons` a partir de
-// frontend/branding/logo-cona-original.png.
+// frontend/branding/logo-cona.png.
 const ALT = 'CONA · IPS Centro Odontológico Nuevo Amanecer del Pacífico SAS';
 
 // Isotipo (diente): favicon, encabezado compacto.

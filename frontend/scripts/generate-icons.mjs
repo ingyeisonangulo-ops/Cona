@@ -1,5 +1,5 @@
 // Genera las variantes web del logo oficial y los íconos de la PWA a partir de
-// frontend/branding/logo-cona-original.png (no se publica: pesa ~1,5 MB).
+// frontend/branding/logo-cona.png (logo oficial con fondo blanco; no se publica: pesa ~0,5 MB).
 //
 //   npm --prefix frontend run icons
 //
@@ -12,15 +12,16 @@ import sharp from 'sharp';
 import { mkdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
-const SRC = fileURLToPath(new URL('../branding/logo-cona-original.png', import.meta.url));
+const SRC = fileURLToPath(new URL('../branding/logo-cona.png', import.meta.url));
 const out = (p) => fileURLToPath(new URL(`../public/${p}`, import.meta.url));
 mkdirSync(out('brand'), { recursive: true });
 mkdirSync(out('icons'), { recursive: true });
 
-// Regiones del original (2492×1268 px).
-const COMPLETO = { left: 65, top: 168, width: 2306, height: 1001 };
-const MARCA = { left: 65, top: 168, width: 2306, height: 712 }; // sin nombre ni lema
-const DIENTE = { left: 1560, top: 168, width: 820, height: 700 };
+// Regiones del original (1500×1500 px, fondo blanco).
+const COMPLETO = { left: 50, top: 460, width: 1370, height: 610 };
+const MARCA = { left: 50, top: 460, width: 1370, height: 435 }; // sin nombre ni lema
+const DIENTE = { left: 920, top: 460, width: 500, height: 420 };
+const LETRA_A_HASTA = 1000; // x donde termina la "a" (se borra lo negro a su izquierda)
 
 // El diente toca la letra "a": se retiran los grises/negros de esa zona.
 async function isotipo() {
@@ -32,7 +33,12 @@ async function isotipo() {
       const gx = DIENTE.left + x;
       const gy = DIENTE.top + y;
       const sat = Math.max(r, g, b) - Math.min(r, g, b);
-      if (gx < 1720 && gy > 380 && gy < 800 && sat < 45 && (r + g + b) / 3 < 235) data[i + 3] = 0;
+      if (gx < LETRA_A_HASTA && gy > 620 && sat < 45) data[i + 3] = 0; // solo en las filas de la "a"
+      // Tramo horizontal de la línea roja bajo el diente (se conserva la curva
+      // que lo abraza por la derecha).
+      else if (gy > 850 && gx < 1290) data[i + 3] = 0;
+      // Fondo blanco → transparente para componer el ícono sobre cualquier color.
+      else if (sat < 18 && (r + g + b) / 3 > 238) data[i + 3] = 0;
     }
   }
   return sharp(data, { raw: info }).trim().png().toBuffer();
