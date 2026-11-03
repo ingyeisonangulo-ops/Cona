@@ -73,5 +73,13 @@ await icono(diente, 192, 0.1, 'icons/icon-192.png');
 await icono(diente, 512, 0.1, 'icons/icon-512.png');
 await icono(diente, 512, 0.2, 'icons/maskable-512.png'); // zona segura de íconos "maskable"
 await icono(diente, 180, 0.12, 'icons/apple-touch-icon-180.png');
-// Favicon sobre fondo blanco (se ve igual en pestañas claras y oscuras).
-await icono(diente, 64, 0.08, 'favicon.png');
+// Favicon: diente dentro de un círculo blanco, con las esquinas transparentes
+// (se ve igual en pestañas claras y oscuras).
+{
+  const size = 64;
+  const inner = Math.round(size * 0.66); // el diente cabe dentro del círculo
+  const img = await sharp(diente).resize({ width: inner, height: inner, fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } }).toBuffer();
+  const circulo = Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}"><circle cx="${size / 2}" cy="${size / 2}" r="${size / 2}" fill="#ffffff"/></svg>`);
+  await sharp(circulo).composite([{ input: img, gravity: 'center' }]).png({ compressionLevel: 9 }).toFile(out('favicon.png'));
+  console.log('favicon.png');
+}
