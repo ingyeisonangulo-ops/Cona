@@ -73,4 +73,5 @@ await icono(diente, 192, 0.1, 'icons/icon-192.png');
 await icono(diente, 512, 0.1, 'icons/icon-512.png');
 await icono(diente, 512, 0.2, 'icons/maskable-512.png'); // zona segura de íconos "maskable"
 await icono(diente, 180, 0.12, 'icons/apple-touch-icon-180.png');
-await icono(diente, 64, 0.04, 'favicon.png', { r: 0, g: 0, b: 0, alpha: 0 });
+// Favicon sobre fondo blanco (se ve igual en pestañas claras y oscuras).
+await icono(diente, 64, 0.08, 'favicon.png');
