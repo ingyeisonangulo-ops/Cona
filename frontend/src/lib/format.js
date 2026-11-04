@@ -43,6 +43,7 @@ export const ACTION_LABELS = {
   USER_ACTIVATED: 'Usuario activado',
   USER_DEACTIVATED: 'Usuario desactivado',
   SEED_USER_CREATED: 'Usuario inicial (seed)',
+  CATALOGO_IMPORTADO: 'Catálogo importado',
   CATEGORIA_CREATED: 'Categoría creada',
   CATEGORIA_UPDATED: 'Categoría editada',
   CATEGORIA_STATUS_CHANGED: 'Estado de categoría',

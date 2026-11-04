@@ -1,0 +1,338 @@
+{
+  "cargos": [
+    "Odontólogo"
+  ],
+  "costoClinica": 0,
+  "categorias": [
+    {
+      "nombre": "PROMOCION Y PREVENCION",
+      "servicios": [
+        {
+          "nombre": "Valoración odontología general.",
+          "valorPublico": 20000,
+          "puntos": 1
+        },
+        {
+          "nombre": "Certificado odontologico/Carta dental",
+          "valorPublico": 42000,
+          "puntos": 1
+        },
+        {
+          "nombre": "Urgencias Valoración.",
+          "valorPublico": 72000,
+          "puntos": 1
+        },
+        {
+          "nombre": "Sellante de fotocurado (unidad.)",
+          "valorPublico": 93000,
+          "puntos": 1
+        }
+      ]
+    },
+    {
+      "nombre": "OPERATORIA",
+      "servicios": [
+        {
+          "nombre": "Cemento temporal.",
+          "valorPublico": 76000,
+          "puntos": 1
+        },
+        {
+          "nombre": "Restauración en resina en dientes temporales.",
+          "valorPublico": 100000,
+          "puntos": 1
+        },
+        {
+          "nombre": "Restauración en resina de 1 superficie.",
+          "valorPublico": 122000,
+          "puntos": 3
+        },
+        {
+          "nombre": "Cambio de amalgama por superficie.",
+          "valorPublico": 152000,
+          "puntos": 1
+        },
+        {
+          "nombre": "Compómeros (cuellos descubiertos).",
+          "valorPublico": 137000,
+          "puntos": 1
+        },
+        {
+          "nombre": "Reconstrucción de tercio incisal en resina de fotocurado.",
+          "valorPublico": 168000,
+          "puntos": 1
+        },
+        {
+          "nombre": "Urgencias procedimientos.",
+          "valorPublico": 190000,
+          "puntos": 1
+        },
+        {
+          "nombre": "Restauración en resina de 2 superficies.",
+          "valorPublico": 216000,
+          "puntos": 5
+        },
+        {
+          "nombre": "Restauración en resina de 3 superficies.",
+          "valorPublico": 300000,
+          "puntos": 7
+        },
+        {
+          "nombre": "Carilla estética en resina de fotocurado.",
+          "valorPublico": 324000,
+          "puntos": 5
+        },
+        {
+          "nombre": "Tratamiento cosmético con fundas de acetato",
+          "valorPublico": 444000,
+          "puntos": 1
+        },
+        {
+          "nombre": "Carilla estética en cerómero",
+          "valorPublico": 984000,
+          "puntos": 3
+        }
+      ]
+    },
+    {
+      "nombre": "PAQUETES DE ODONTOLOGIA",
+      "servicios": [
+        {
+          "nombre": "Paquete 1: 5 calzas+extraccion simple + limpieza",
+          "valorPublico": 672000,
+          "puntos": 8
+        },
+        {
+          "nombre": "Paquete 2: 8 calzas + extracción simple + limpieza",
+          "valorPublico": 960000,
+          "puntos": 10
+        },
+        {
+          "nombre": "Paquete 3:11 calzas + extracción simple + limpieza",
+          "valorPublico": 1152000,
+          "puntos": 12
+        },
+        {
+          "nombre": "Paquete 4: 15 calzas + extracción simple + limpieza",
+          "valorPublico": 1476000,
+          "puntos": 14
+        }
+      ]
+    },
+    {
+      "nombre": "CIRUGIA",
+      "servicios": [
+        {
+          "nombre": "Exodoncia diente temporal.",
+          "valorPublico": 137000,
+          "puntos": 4
+        },
+        {
+          "nombre": "Exodoncia simple.",
+          "valorPublico": 168000,
+          "puntos": 6
+        },
+        {
+          "nombre": "Exodoncia complicada.",
+          "valorPublico": 216000,
+          "puntos": 8
+        },
+        {
+          "nombre": "Exodoncia cordal erupcionada.",
+          "valorPublico": 264000,
+          "puntos": 6
+        },
+        {
+          "nombre": "Exodoncia de tercer molar complicada.",
+          "valorPublico": 348000,
+          "puntos": 10
+        },
+        {
+          "nombre": "Exodoncia cordal incluida.",
+          "valorPublico": 370000,
+          "puntos": 12
+        }
+      ]
+    },
+    {
+      "nombre": "REHABILITACION ORAL (PROTESIS FIJA)",
+      "servicios": [
+        {
+          "nombre": "Provisional de acrílico.",
+          "valorPublico": 184000,
+          "puntos": 1
+        },
+        {
+          "nombre": "Núcleo Prefabricado 220.",
+          "valorPublico": 324000,
+          "puntos": 3
+        },
+        {
+          "nombre": "Núcleo en fibra de vidrio.",
+          "valorPublico": 384000,
+          "puntos": 3
+        },
+        {
+          "nombre": "Incrustación",
+          "valorPublico": 950000,
+          "puntos": 3
+        },
+        {
+          "nombre": "Carilla estética en cerómero.",
+          "valorPublico": 990000,
+          "puntos": 4
+        },
+        {
+          "nombre": "Corona libre de metal (Emax 950)",
+          "valorPublico": 1068000,
+          "puntos": 5
+        },
+        {
+          "nombre": "Corona de metal-porcelana.",
+          "valorPublico": 1200000,
+          "puntos": 5
+        },
+        {
+          "nombre": "Corona libre de metal (1100 Zirconio).",
+          "valorPublico": 1730000,
+          "puntos": 5
+        }
+      ]
+    },
+    {
+      "nombre": "REHABILITACION ORAL (PROTESIS REMOVIBLE)",
+      "servicios": [
+        {
+          "nombre": "Rebase de laboratorio",
+          "valorPublico": 170000,
+          "puntos": 2
+        },
+        {
+          "nombre": "Reparación de Prótesis parcial",
+          "valorPublico": 170000,
+          "puntos": 2
+        },
+        {
+          "nombre": "Placa de bruxismo neuromiorelajante.",
+          "valorPublico": 390000,
+          "puntos": 2
+        },
+        {
+          "nombre": "Reparación de Prótesis total",
+          "valorPublico": 190000,
+          "puntos": 2
+        },
+        {
+          "nombre": "Prótesis transicional",
+          "valorPublico": 420000,
+          "puntos": 2
+        },
+        {
+          "nombre": "Acker semirigido zund 1 unidad.",
+          "valorPublico": 770000,
+          "puntos": 2
+        },
+        {
+          "nombre": "Acker semirigido zund 2 unidades.",
+          "valorPublico": 890000,
+          "puntos": 2
+        },
+        {
+          "nombre": "Prótesis parcial en acrílico superior o inferior.",
+          "valorPublico": 910000,
+          "puntos": 6
+        },
+        {
+          "nombre": "Prótesis total en acrílico superior o inferior.",
+          "valorPublico": 1100000,
+          "puntos": 6
+        },
+        {
+          "nombre": "Prótesis en ivoclar (parcial.)",
+          "valorPublico": 1300000,
+          "puntos": 6
+        },
+        {
+          "nombre": "Prótesis en ivoclar (total).",
+          "valorPublico": 1450000,
+          "puntos": 6
+        },
+        {
+          "nombre": "Prótesis removible metal-acrílico superior o inferior.",
+          "valorPublico": 1500000,
+          "puntos": 6
+        },
+        {
+          "nombre": "Prótesis vaiplas bio dent.",
+          "valorPublico": 1500000,
+          "puntos": 8
+        },
+        {
+          "nombre": "Prótesis vaiplas Dura tone.",
+          "valorPublico": 1620000,
+          "puntos": 8
+        }
+      ]
+    },
+    {
+      "nombre": "PERIODONCIA",
+      "servicios": [
+        {
+          "nombre": "Gingivectomia (por diente).",
+          "valorPublico": 190000,
+          "puntos": 3
+        },
+        {
+          "nombre": "Frenillectomia labial o lingual.",
+          "valorPublico": 530000,
+          "puntos": 4
+        },
+        {
+          "nombre": "Alargamiento de corona por diente.",
+          "valorPublico": 560000,
+          "puntos": 4
+        },
+        {
+          "nombre": "Gingivoplastia (por cuadrante).",
+          "valorPublico": 680000,
+          "puntos": 4
+        }
+      ]
+    },
+    {
+      "nombre": "DISEÑO DE SONRISA",
+      "servicios": [
+        {
+          "nombre": "Aclaramiento dental parcial",
+          "valorPublico": 220000,
+          "puntos": 3
+        },
+        {
+          "nombre": "Mantenimiento de diseño",
+          "valorPublico": 264000,
+          "puntos": 4
+        },
+        {
+          "nombre": "Retiro de diseño de sonrisa",
+          "valorPublico": 290000,
+          "puntos": 5
+        },
+        {
+          "nombre": "Aclaramiento casero",
+          "valorPublico": 350000,
+          "puntos": 1
+        },
+        {
+          "nombre": "Aclaramiento dental completo.",
+          "valorPublico": 530000,
+          "puntos": 4
+        },
+        {
+          "nombre": "Diseño de sonrisa superior e inferior en resina",
+          "valorPublico": 4400000,
+          "puntos": 6
+        }
+      ]
+    }
+  ]
+}
