@@ -206,7 +206,7 @@ try {
     return { org, gerente, paciente, cat };
   });
   const asiA = await Client.as(EMAILS.asistente);
-  const pacA = (await asiA.req('POST', '/pacientes', { cedula: '11223344', nombre: 'Paciente', apellido: 'Propio', telefono: '3001112233', medioOrigen: 'Referido' })).data.paciente;
+  const pacA = (await asiA.req('POST', '/pacientes', { cedula: '11223344', nombre: 'Paciente', apellido: 'Propio', telefono: '3001112233', medioOrigen: 'Referido', fechaNacimiento: '1990-01-15' })).data.paciente;
 
   // Nivel API: otra organización no ve nada de la primera y viceversa.
   const gerB = await Client.as('gerente@ajena.test', 'GerenteAjeno#2026');
@@ -312,7 +312,8 @@ try {
     .split('\n')
     .map((l) => l.match(/^([A-Z][A-Z0-9_]+)=/)?.[1])
     .filter(Boolean);
-  const leakedKeys = envKeys.filter((k) => bundle.includes(k));
+  // Nombre completo, no subcadena: PORT no debe coincidir con CATALOGO_IMPORTADO.
+  const leakedKeys = envKeys.filter((k) => new RegExp(`(?<![A-Z0-9_])${k}(?![A-Z0-9_])`).test(bundle));
   h.check(leakedKeys.length === 0, `Ningún nombre de variable de entorno del backend en el bundle${leakedKeys.length ? ` (${leakedKeys.join(', ')})` : ''}`);
 
   const patterns = [

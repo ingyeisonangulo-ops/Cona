@@ -54,7 +54,7 @@ try {
   ok(r.status === 400 && r.data.error.code === 'PATIENT_DATA_REQUIRED', 'paciente nuevo exige datos personales');
   r = await asi.req('POST', '/atenciones', {
     cedula: '1061234567',
-    paciente: { nombre: 'Ana', apellido: 'Riascos', telefono: '3001234567', medioOrigen: 'Referido' },
+    paciente: { nombre: 'Ana', apellido: 'Riascos', telefono: '3001234567', medioOrigen: 'Referido', fechaNacimiento: '1990-05-14' },
     items: [
       { servicioId: consulta.id, colaboradorId, convenioId: convenio.id },
       { servicioId: resina.id, colaboradorId, otros: { valor: 99000, motivo: 'Tarifa especial autorizada' } },
@@ -73,11 +73,11 @@ try {
   ok(r.data.existe === true && r.data.paciente.nombre === 'Ana', 'cédula existente detectada');
   r = await asi.req('POST', '/atenciones', {
     cedula: '1061234567',
-    paciente: { nombre: 'Cambiado', apellido: 'Intento', telefono: '3000000000', medioOrigen: 'Otro' },
+    paciente: { nombre: 'Cambiado', apellido: 'Intento', telefono: '3000000000', medioOrigen: 'Otro', fechaNacimiento: '1980-01-01' },
     items: [{ servicioId: consulta.id, colaboradorId }],
   });
   ok(r.status === 201 && !r.data.pacienteNuevo && r.data.paciente.nombre === 'Ana', 'paciente existente: datos personales no se modifican');
-  r = await asi.req('POST', '/pacientes', { cedula: '1061234567', nombre: 'Otra', apellido: 'Persona', telefono: '3000000001', medioOrigen: 'Otro' });
+  r = await asi.req('POST', '/pacientes', { cedula: '1061234567', nombre: 'Otra', apellido: 'Persona', telefono: '3000000001', medioOrigen: 'Otro', fechaNacimiento: '1985-02-03' });
   ok(r.status === 409 && r.data.error.message === 'El paciente ya está registrado', 'cédula duplicada → "El paciente ya está registrado"');
 
   const gerenteId = (await ger.req('GET', '/auth/me')).data.user.id;
@@ -294,6 +294,36 @@ try {
   ok(r.status === 404, 'servicio de otro cargo → 404 para el Colaborador');
   r = await asi.req('GET', '/mi-progreso');
   ok(r.status === 200 && r.data.puntos.total >= 5, 'Mi progreso de la Asistente cuenta sus servicios');
+
+  // ----------------------------------------------------- Cumpleañeros (migración 009)
+  const datosPaciente = { cedula: '7700112', nombre: 'Bruno', apellido: 'Díaz', telefono: '3000000002', medioOrigen: 'Otro' };
+  r = await asi.req('POST', '/pacientes', datosPaciente);
+  ok(r.status === 400 && /nacimiento/i.test(JSON.stringify(r.data)), 'paciente nuevo exige fecha de nacimiento', JSON.stringify(r.data));
+  r = await asi.req('POST', '/pacientes', { ...datosPaciente, fechaNacimiento: '2999-01-01' });
+  ok(r.status === 400, 'fecha de nacimiento futura rechazada');
+  r = await asi.req('POST', '/pacientes', { ...datosPaciente, fechaNacimiento: '1990-02-30' });
+  ok(r.status === 400, 'fecha de nacimiento inexistente rechazada');
+  r = await asi.req('POST', '/pacientes', { ...datosPaciente, fechaNacimiento: '2001-05-03' });
+  ok(r.status === 201 && r.data.paciente.fechaNacimiento === '2001-05-03', 'paciente con fecha de nacimiento');
+  const bruno = r.data.paciente;
+
+  r = await asi.req('GET', '/pacientes/cumpleanos?mes=5');
+  ok(r.status === 200 && r.data.cumpleaneros.map((c) => c.nombre).join() === 'Bruno Díaz,Ana Riascos', 'cumpleañeros del mes ordenados por día', JSON.stringify(r.data));
+  ok(r.data.cumpleaneros[0].dia === 3 && r.data.cumpleaneros[1].dia === 14, 'cumpleañeros con su día');
+  ok(Object.keys(r.data.cumpleaneros[0]).sort().join() === 'dia,id,nombre', 'cumpleañeros solo expone nombre y día');
+  r = await asi.req('GET', '/pacientes/cumpleanos?mes=8');
+  ok(r.status === 200 && r.data.cumpleaneros.length === 0, 'mes sin cumpleañeros');
+  r = await asi.req('GET', '/pacientes/cumpleanos');
+  ok(r.status === 200 && r.data.mes >= 1 && r.data.mes <= 12, 'cumpleañeros usa el mes actual por defecto');
+  r = await asi.req('GET', '/pacientes/cumpleanos?mes=13');
+  ok(r.status === 400, 'mes inválido → 400');
+  r = await col.req('GET', '/pacientes/cumpleanos');
+  ok(r.status === 403, 'Colaborador no ve cumpleañeros');
+
+  r = await asi.req('PUT', `/pacientes/${bruno.id}`, { nombre: 'Bruno', apellido: 'Díaz', telefono: '3000000003', medioOrigen: 'Otro' });
+  ok(r.status === 200 && r.data.paciente.fechaNacimiento === '2001-05-03', 'editar sin fecha conserva la fecha de nacimiento');
+  r = await asi.req('PUT', `/pacientes/${bruno.id}`, { nombre: 'Bruno', apellido: 'Díaz', telefono: '3000000003', medioOrigen: 'Otro', fechaNacimiento: '2001-06-03' });
+  ok(r.status === 200 && r.data.paciente.fechaNacimiento === '2001-06-03', 'editar corrige la fecha de nacimiento');
 } catch (err) {
   console.error(err);
   crashed = true;

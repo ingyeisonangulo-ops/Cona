@@ -184,3 +184,12 @@ Cada módulo incluye **caminos felices** (✅) y **rutas de fallo** (⛔), que d
 - [ ] **Registrar servicios** y **Nueva cita**: al elegir un servicio, el selector de colaborador muestra solo a quienes tienen un cargo que lo realiza (nombre · cargo). Si el colaborador elegido no aplica, se limpia.
 - [ ] La Asistente aparece como colaboradora (registro, metas, desempeño del tablero) y tiene **Mi progreso** en el menú.
 - [ ] Como Colaborador, el catálogo muestra solo los servicios de su cargo.
+
+## 14. Cumpleañeros
+
+- [ ] **Registrar servicios** y **Nueva cita**: un paciente nuevo exige **Fecha de nacimiento**; no acepta fechas futuras.
+- [ ] Un paciente existente se registra sin que se le pida la fecha; se puede agregar en **Pacientes → Editar**.
+- [ ] **Cumpleañeros** muestra el mes actual con nombre y día, ordenado por día.
+- [ ] Las flechas recorren los 12 meses en ciclo (de diciembre pasa a enero y de enero a diciembre).
+- [ ] Debajo de la lista se indica cuántos pacientes no tienen fecha de nacimiento.
+- [ ] Gerente, Asistente y Super Admin ven el apartado; el Colaborador no lo ve en el menú y la API responde 403.

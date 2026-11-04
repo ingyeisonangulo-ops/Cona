@@ -6,7 +6,7 @@ import { Alert, Button, Card, IconButton, Input, PageHeader, Select } from '../c
 import { get, post } from '../lib/api.js';
 import { formatCOP } from '../lib/format.js';
 
-const EMPTY_PACIENTE = { nombre: '', apellido: '', telefono: '', medioOrigen: '' };
+const EMPTY_PACIENTE = { nombre: '', apellido: '', telefono: '', fechaNacimiento: '', medioOrigen: '' };
 const newItem = () => ({ key: crypto.randomUUID(), servicioId: '', colaboradorId: '', convenioId: '', otros: null });
 
 function previewValor(item, servicios, convenios) {
@@ -73,7 +73,11 @@ export default function RegistroPage() {
     try {
       const d = await get(`/pacientes/cedula/${encodeURIComponent(value)}`);
       setLookup(d);
-      setPaciente(d.paciente ? { nombre: d.paciente.nombre, apellido: d.paciente.apellido, telefono: d.paciente.telefono, medioOrigen: d.paciente.medioOrigen } : EMPTY_PACIENTE);
+      setPaciente(
+        d.paciente
+          ? { nombre: d.paciente.nombre, apellido: d.paciente.apellido, telefono: d.paciente.telefono, fechaNacimiento: d.paciente.fechaNacimiento ?? '', medioOrigen: d.paciente.medioOrigen }
+          : EMPTY_PACIENTE,
+      );
     } catch (err) {
       setLookup(null);
       setError(err.message);
@@ -174,7 +178,8 @@ export default function RegistroPage() {
             <Input label="Nombre" required={!existe} value={paciente.nombre} onChange={(e) => setPaciente({ ...paciente, nombre: e.target.value })} />
             <Input label="Apellido" required={!existe} value={paciente.apellido} onChange={(e) => setPaciente({ ...paciente, apellido: e.target.value })} />
             <Input label="Teléfono" type="tel" inputMode="tel" required={!existe} value={paciente.telefono} onChange={(e) => setPaciente({ ...paciente, telefono: e.target.value })} />
-            <Select label="Medio de origen" required={!existe} value={paciente.medioOrigen} onChange={(e) => setPaciente({ ...paciente, medioOrigen: e.target.value })}>
+            <Input label="Fecha de nacimiento" type="date" min="1900-01-01" max={todayBogota()} required={!existe} value={paciente.fechaNacimiento} onChange={(e) => setPaciente({ ...paciente, fechaNacimiento: e.target.value })} />
+            <Select label="Medio de origen" className="md:col-span-2" required={!existe} value={paciente.medioOrigen} onChange={(e) => setPaciente({ ...paciente, medioOrigen: e.target.value })}>
               <option value="">Seleccione…</option>
               {MEDIOS_ORIGEN.map((m) => (
                 <option key={m}>{m}</option>

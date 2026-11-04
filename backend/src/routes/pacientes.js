@@ -4,10 +4,16 @@ import { db } from '../db.js';
 import { requireFound } from '../lib/errors.js';
 import { parse, txRoute } from '../lib/txRoute.js';
 import { requirePermission } from '../middleware/authorize.js';
+import { todayParts } from '../services/metrics.js';
 
 export const pacientesRouter = Router();
 
 export const MEDIOS_ORIGEN = ['Redes Sociales', 'Televisión', 'Referido', 'Otro'];
+
+const fechaHoy = () => {
+  const { anio, mes, dia } = todayParts();
+  return `${anio}-${String(mes).padStart(2, '0')}-${String(dia).padStart(2, '0')}`;
+};
 
 export const cedulaField = z
   .string()
@@ -24,7 +30,13 @@ export const pacienteDatosSchema = z.object({
     .trim()
     .regex(/^\+?[0-9 ]{7,20}$/, 'Teléfono inválido'),
   medioOrigen: z.enum(MEDIOS_ORIGEN, { message: 'Seleccione el medio de origen' }),
+  fechaNacimiento: z
+    .iso.date('Ingrese la fecha de nacimiento')
+    .refine((f) => f >= '1900-01-01' && f <= fechaHoy(), 'La fecha de nacimiento no es válida'),
 });
+
+// Editar: la fecha es opcional porque los pacientes antiguos pueden no tenerla.
+const pacienteEdicionSchema = pacienteDatosSchema.partial({ fechaNacimiento: true });
 
 const idParam = z.object({ id: z.uuid('Identificador inválido') });
 const searchQuery = z.object({ q: z.string().trim().max(80).default('') });
@@ -36,6 +48,7 @@ export const mapPaciente = (r) => ({
   apellido: r.apellido,
   telefono: r.telefono,
   fechaRegistro: r.fecha_registro,
+  fechaNacimiento: r.fecha_nacimiento,
   medioOrigen: r.medio_origen,
 });
 
@@ -45,9 +58,9 @@ export async function findPacienteByCedula(cedula) {
 
 export async function insertPaciente(organizationId, cedula, datos) {
   const { rows } = await db.query(
-    `INSERT INTO pacientes (organization_id, cedula, nombre, apellido, telefono, medio_origen)
-     VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
-    [organizationId, cedula, datos.nombre, datos.apellido, datos.telefono, datos.medioOrigen],
+    `INSERT INTO pacientes (organization_id, cedula, nombre, apellido, telefono, medio_origen, fecha_nacimiento)
+     VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+    [organizationId, cedula, datos.nombre, datos.apellido, datos.telefono, datos.medioOrigen, datos.fechaNacimiento],
   );
   return rows[0];
 }
@@ -77,6 +90,24 @@ pacientesRouter.get(
       [q, term],
     );
     return { pacientes: rows.map(mapPaciente) };
+  }),
+);
+
+// Cumpleañeros de un mes (va antes de '/:id'). Solo nombre y día.
+pacientesRouter.get(
+  '/cumpleanos',
+  requirePermission('SEARCH_PATIENTS'),
+  txRoute(async (req) => {
+    const { mes } = parse(z.object({ mes: z.coerce.number().int().min(1).max(12).default(todayParts().mes) }), req.query);
+    const { rows } = await db.query(
+      `SELECT id, nombre, apellido, extract(day FROM fecha_nacimiento)::int AS dia
+       FROM pacientes
+       WHERE extract(month FROM fecha_nacimiento) = $1
+       ORDER BY dia, nombre, apellido`,
+      [mes],
+    );
+    const sinFecha = (await db.query('SELECT count(*)::int AS n FROM pacientes WHERE fecha_nacimiento IS NULL')).rows[0].n;
+    return { mes, cumpleaneros: rows.map((r) => ({ id: r.id, nombre: `${r.nombre} ${r.apellido}`, dia: r.dia })), sinFecha };
   }),
 );
 
@@ -152,11 +183,13 @@ pacientesRouter.put(
   txRoute(
     async (req, res) => {
       const { id } = parse(idParam, req.params);
-      const data = parse(pacienteDatosSchema, req.body ?? {});
+      const data = parse(pacienteEdicionSchema, req.body ?? {});
       const prev = requireFound((await db.query('SELECT * FROM pacientes WHERE id = $1', [id])).rows[0]);
       const { rows } = await db.query(
-        'UPDATE pacientes SET nombre = $1, apellido = $2, telefono = $3, medio_origen = $4 WHERE id = $5 RETURNING *',
-        [data.nombre, data.apellido, data.telefono, data.medioOrigen, id],
+        `UPDATE pacientes SET nombre = $1, apellido = $2, telefono = $3, medio_origen = $4,
+           fecha_nacimiento = coalesce($5, fecha_nacimiento)
+         WHERE id = $6 RETURNING *`,
+        [data.nombre, data.apellido, data.telefono, data.medioOrigen, data.fechaNacimiento ?? null, id],
       );
       res.locals.audit = { metadata: { before: mapPaciente(prev), after: data } };
       return { paciente: mapPaciente(rows[0]) };

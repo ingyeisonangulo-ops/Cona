@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { History, Pencil, Search, UserRound } from 'lucide-react';
-import { EstadoBadge, MEDIOS_ORIGEN, formatFecha } from '../components/business.jsx';
+import { EstadoBadge, MEDIOS_ORIGEN, formatFecha, todayBogota } from '../components/business.jsx';
 import { Alert, Badge, Button, Card, EmptyState, IconButton, Input, Modal, PageHeader, Select, Spinner, TableWrap, td, th } from '../components/ui.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 import { put } from '../lib/api.js';
@@ -66,7 +66,13 @@ function HistorialModal({ paciente, onClose }) {
 }
 
 function EditModal({ paciente, onClose, onSaved }) {
-  const [form, setForm] = useState({ nombre: paciente.nombre, apellido: paciente.apellido, telefono: paciente.telefono, medioOrigen: paciente.medioOrigen });
+  const [form, setForm] = useState({
+    nombre: paciente.nombre,
+    apellido: paciente.apellido,
+    telefono: paciente.telefono,
+    fechaNacimiento: paciente.fechaNacimiento ?? '',
+    medioOrigen: paciente.medioOrigen,
+  });
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
@@ -75,7 +81,7 @@ function EditModal({ paciente, onClose, onSaved }) {
     setSaving(true);
     setError('');
     try {
-      await put(`/pacientes/${paciente.id}`, form);
+      await put(`/pacientes/${paciente.id}`, { ...form, fechaNacimiento: form.fechaNacimiento || undefined });
       onSaved();
     } catch (err) {
       setError(err.message);
@@ -105,7 +111,8 @@ function EditModal({ paciente, onClose, onSaved }) {
         <Input label="Nombre" value={form.nombre} onChange={set('nombre')} />
         <Input label="Apellido" value={form.apellido} onChange={set('apellido')} />
         <Input label="Teléfono" type="tel" value={form.telefono} onChange={set('telefono')} />
-        <Select label="Medio de origen" value={form.medioOrigen} onChange={set('medioOrigen')}>
+        <Input label="Fecha de nacimiento" type="date" min="1900-01-01" max={todayBogota()} value={form.fechaNacimiento} onChange={set('fechaNacimiento')} />
+        <Select label="Medio de origen" className="md:col-span-2" value={form.medioOrigen} onChange={set('medioOrigen')}>
           {MEDIOS_ORIGEN.map((m) => (
             <option key={m}>{m}</option>
           ))}

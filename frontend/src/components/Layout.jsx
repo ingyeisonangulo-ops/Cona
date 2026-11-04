@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import {
   Bell,
+  Cake,
   CalendarDays,
   CalendarX2,
   ClipboardList,
@@ -42,6 +43,7 @@ const SECTIONS = [
       { to: '/agenda', label: 'Agenda', icon: CalendarDays, perms: ['MANAGE_APPOINTMENTS'] },
       { to: '/inasistencias', label: 'Inasistencias', short: 'Ausencias', icon: CalendarX2, perms: ['CLOSE_ABSENCES'], badge: 'pendientes' },
       { to: '/pacientes', label: 'Pacientes', icon: UserRound, perms: ['SEARCH_PATIENTS'] },
+      { to: '/cumpleaneros', label: 'Cumpleañeros', icon: Cake, perms: ['SEARCH_PATIENTS'] },
     ],
   },
   {

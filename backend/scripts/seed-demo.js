@@ -250,8 +250,8 @@ try {
     const primera = i < 40 ? pick(diasM2) : pick(diasM1.length ? diasM1 : diasM2);
     const p = (
       await q(
-        `INSERT INTO pacientes (organization_id, cedula, nombre, apellido, telefono, fecha_registro, medio_origen, created_by, updated_by)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $8) RETURNING id, fecha_registro`,
+        `INSERT INTO pacientes (organization_id, cedula, nombre, apellido, telefono, fecha_registro, medio_origen, fecha_nacimiento, created_by, updated_by)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $9, $8, $8) RETURNING id, fecha_registro`,
         [
           org,
           `90000${String(10000 + i * 137).padStart(5, '0')}`,
@@ -261,6 +261,7 @@ try {
           primera,
           weighted(MEDIOS),
           asistente,
+          `${1955 + Math.floor(rand() * 60)}-${String(1 + Math.floor(rand() * 12)).padStart(2, '0')}-${String(1 + Math.floor(rand() * 28)).padStart(2, '0')}`,
         ],
       )
     ).rows[0];

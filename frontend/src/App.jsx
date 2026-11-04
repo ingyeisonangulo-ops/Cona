@@ -13,6 +13,7 @@ import ResetPasswordPage from './pages/ResetPasswordPage.jsx';
 import RolesPage from './pages/RolesPage.jsx';
 import UsersPage from './pages/UsersPage.jsx';
 import AgendaPage from './pages/AgendaPage.jsx';
+import CumpleanerosPage from './pages/CumpleanerosPage.jsx';
 import InasistenciasPage from './pages/InasistenciasPage.jsx';
 import MetasPage from './pages/MetasPage.jsx';
 import MiProgresoPage from './pages/MiProgresoPage.jsx';
@@ -67,6 +68,7 @@ export default function App() {
         />
         <Route path="registro" element={<RequirePermission perms={['REGISTER_SERVICES']}><RegistroPage /></RequirePermission>} />
         <Route path="pacientes" element={<RequirePermission perms={['SEARCH_PATIENTS']}><PacientesPage /></RequirePermission>} />
+        <Route path="cumpleaneros" element={<RequirePermission perms={['SEARCH_PATIENTS']}><CumpleanerosPage /></RequirePermission>} />
         <Route path="agenda" element={<RequirePermission perms={['MANAGE_APPOINTMENTS']}><AgendaPage /></RequirePermission>} />
         <Route path="inasistencias" element={<RequirePermission perms={['CLOSE_ABSENCES']}><InasistenciasPage /></RequirePermission>} />
         <Route path="metas" element={<RequirePermission perms={['MANAGE_COLLABORATORS']}><MetasPage /></RequirePermission>} />
