@@ -357,7 +357,7 @@ export function ColumnChart({ title, description, data, height = 150, unit = 'ca
         <LegendTable data={data} format={format} pct={pct} />
       ) : (
         <div className="mt-auto">
-          <div className="flex items-end justify-around gap-3" style={{ height }} role="list">
+          <div className="flex items-end justify-around gap-1 md:gap-3" style={{ height }} role="list">
             {data.map((d, i) => {
               const h = d.value ? Math.max(6, (d.value / max) * (height - 24)) : 0;
               return (
@@ -370,7 +370,7 @@ export function ColumnChart({ title, description, data, height = 150, unit = 'ca
                   onMouseLeave={() => setHover(null)}
                   onFocus={() => setHover(i)}
                   onBlur={() => setHover(null)}
-                  className="group relative flex h-full flex-1 flex-col items-center justify-end outline-none"
+                  className="group relative flex h-full min-w-0 flex-1 flex-col items-center justify-end outline-none"
                 >
                   <span className="tabular mb-1.5 text-xs font-semibold text-text">{format(d.value)}</span>
                   <span className="relative flex w-full max-w-5 flex-1 items-end overflow-hidden rounded-t-[6px] bg-subtle" style={{ maxHeight: height - 24 }}>
@@ -388,9 +388,9 @@ export function ColumnChart({ title, description, data, height = 150, unit = 'ca
               );
             })}
           </div>
-          <div className="mt-2 flex justify-around gap-3 border-t border-line pt-2">
+          <div className="mt-2 flex justify-around gap-1 border-t border-line pt-2 md:gap-3">
             {data.map((d) => (
-              <span key={d.label} className="flex flex-1 items-start justify-center gap-1 text-center text-[11px] leading-tight text-muted">
+              <span key={d.label} className="flex min-w-0 flex-1 items-start justify-center gap-1 text-center text-[11px] leading-tight text-muted">
                 {d.color && <span className="mt-0.5 size-2 shrink-0 rounded-full" style={{ background: d.color }} aria-hidden />}
                 {d.label}
               </span>
