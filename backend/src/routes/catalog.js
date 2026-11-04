@@ -18,11 +18,16 @@ const canSeeMoney = (user) => hasPermission(user.role, 'MANAGE_SERVICES') || has
 // El costo para la clínica solo lo ve quien administra el catálogo (Super Admin y
 // Gerente). La Asistente ve el valor al público, no el costo ni el margen.
 export const canSeeCost = (user) => hasPermission(user.role, 'MANAGE_SERVICES');
+// La Asistente tampoco ve los puntos del catálogo; el Colaborador sí, porque son
+// los de su progreso, pero sin cifras en dinero.
 function servicioFor(user, s) {
   if (canSeeCost(user)) return s;
-  const { valorPublico, costoClinica: _c, ...rest } = s;
-  return canSeeMoney(user) ? { ...rest, valorPublico } : rest;
+  const { valorPublico, costoClinica: _c, puntos, ...rest } = s;
+  return canSeeMoney(user) ? { ...rest, valorPublico } : { ...rest, puntos };
 }
+
+// VIEW_ROLE_SERVICES: el Colaborador solo ve lo de su cargo (null = sin filtro).
+const cargoVisible = (user) => (canSeeMoney(user) ? null : (user.cargo ?? ''));
 
 const idParam = z.object({ id: z.uuid('Identificador inválido') });
 const statusSchema = z.object({ status: z.enum(['active', 'inactive']) });
@@ -50,11 +55,13 @@ const mapCategoria = (r) => ({
   updatedAt: r.updated_at,
 });
 
-async function findCategoria(id) {
+async function findCategoria(id, cargo = null) {
   const { rows } = await db.query(
-    `SELECT c.*, (SELECT count(*) FROM servicios s WHERE s.categoria_id = c.id) AS servicios_count
-     FROM categorias c WHERE c.id = $1`,
-    [id],
+    `SELECT c.*, (SELECT count(*) FROM servicios s WHERE s.categoria_id = c.id AND ($2::text IS NULL OR $2 = ANY (s.cargos))) AS servicios_count
+     FROM categorias c
+     WHERE c.id = $1
+       AND ($2::text IS NULL OR EXISTS (SELECT 1 FROM servicios s WHERE s.categoria_id = c.id AND $2 = ANY (s.cargos)))`,
+    [id, cargo],
   );
   return rows[0];
 }
@@ -65,11 +72,12 @@ categoriasRouter.get(
   txRoute(async (req) => {
     const { status, q } = parse(listQuery, req.query);
     const { rows } = await db.query(
-      `SELECT c.*, (SELECT count(*) FROM servicios s WHERE s.categoria_id = c.id) AS servicios_count
+      `SELECT c.*, (SELECT count(*) FROM servicios s WHERE s.categoria_id = c.id AND ($3::text IS NULL OR $3 = ANY (s.cargos))) AS servicios_count
        FROM categorias c
        WHERE ($1 = 'all' OR c.status = $1) AND ($2::text IS NULL OR c.nombre ILIKE '%' || $2 || '%')
+         AND ($3::text IS NULL OR EXISTS (SELECT 1 FROM servicios s WHERE s.categoria_id = c.id AND $3 = ANY (s.cargos)))
        ORDER BY c.nombre`,
-      [status, q || null],
+      [status, q || null, cargoVisible(req.user)],
     );
     return { categorias: rows.map(mapCategoria) };
   }),
@@ -78,7 +86,7 @@ categoriasRouter.get(
 categoriasRouter.get(
   '/:id',
   canRead,
-  txRoute(async (req) => ({ categoria: mapCategoria(requireFound(await findCategoria(parse(idParam, req.params).id))) })),
+  txRoute(async (req) => ({ categoria: mapCategoria(requireFound(await findCategoria(parse(idParam, req.params).id, cargoVisible(req.user)))) })),
 );
 
 categoriasRouter.post(
@@ -192,8 +200,7 @@ serviciosRouter.get(
          AND ($3::uuid IS NULL OR s.categoria_id = $3)
          AND ($4::text IS NULL OR $4 = ANY (s.cargos))
        ORDER BY c.nombre, s.nombre`,
-      // VIEW_ROLE_SERVICES: el Colaborador solo ve los servicios de su cargo.
-      [status, q || null, categoriaId ?? null, canSeeMoney(req.user) ? null : (req.user.cargo ?? '')],
+      [status, q || null, categoriaId ?? null, cargoVisible(req.user)],
     );
     return { servicios: rows.map((r) => servicioFor(req.user, mapServicio(r))) };
   }),

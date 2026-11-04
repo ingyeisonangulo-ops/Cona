@@ -206,3 +206,10 @@ Cada módulo incluye **caminos felices** (✅) y **rutas de fallo** (⛔), que d
 - [ ] El mismo día se puede registrar otra atención con el convenio. Otro día del mismo mes ya no aparece y se muestra el aviso.
 - [ ] Si se anula el servicio, el paciente puede volver a usarlo.
 - [ ] Columna **Descuento**: **Aplicado** si lo usó; si no, **Vencido** en meses pasados, **Pendiente** en el mes actual y **No aplica** en meses futuros.
+
+## 16. Resumen de cumpleañeros y vista por cargo
+
+- [ ] **Cumpleañeros → Resumen**: 12 meses del año en curso con cumpleañeros, felicitados, descuento aplicado y total. Las flechas de mes se ocultan en esta pestaña.
+- [ ] Como Asistente, **Servicios y convenios** no muestra Puntos ni Costo clínica.
+- [ ] Como Colaborador, **Servicios** y **Categorías** muestran solo lo de su cargo, y el número de servicios por categoría cuenta solo esos.
+- [ ] Como Colaborador, el menú no tiene Inicio; al entrar va directo a **Mi progreso**.

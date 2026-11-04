@@ -32,7 +32,8 @@ const SECTIONS = [
   {
     label: null,
     items: [
-      { to: '/', label: 'Inicio', icon: LayoutDashboard, perms: null },
+      // El Colaborador no tiene Inicio: su pantalla principal es Mi progreso.
+      { to: '/', label: 'Inicio', icon: LayoutDashboard, perms: ['VIEW_DASHBOARD_FINANCE', 'MANAGE_APPOINTMENTS', 'REGISTER_SERVICES', 'CLOSE_ABSENCES'] },
       { to: '/mi-progreso', label: 'Mi progreso', icon: Trophy, perms: ['VIEW_PERSONAL_PROGRESS'], hideIf: ['VIEW_DASHBOARD_FINANCE'] },
     ],
   },
@@ -155,11 +156,7 @@ function NavItems({ sections, onNavigate, counters, rail }) {
 
 // Barra inferior (móvil y tableta): 3 destinos frecuentes + "Menú" con el resto.
 function BottomBar({ sections, counters, onMenu }) {
-  let items = sections.flatMap((s) => s.items);
-  // Para el Colaborador, Inicio ya es Mi progreso: no se repite.
-  const { can } = useAuth();
-  if (!can('MANAGE_APPOINTMENTS', 'REGISTER_SERVICES', 'CLOSE_ABSENCES')) items = items.filter((n) => n.to !== '/');
-  items = items.slice(0, 3);
+  const items = sections.flatMap((s) => s.items).slice(0, 3);
   if (items.length < 3) items.push(PERFIL);
   return (
     <nav aria-label="Accesos rápidos" className="pb-safe fixed inset-x-0 bottom-0 z-30 border-t border-line bg-surface/95 backdrop-blur lg:hidden">

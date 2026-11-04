@@ -1,11 +1,10 @@
-import { Link } from 'react-router-dom';
+import { Link, Navigate } from 'react-router-dom';
 import { BellRing, CalendarCheck2, CalendarDays, CalendarPlus, CalendarX2, ClipboardPlus, Stethoscope } from 'lucide-react';
 import { ALERTA_STYLES, AlertaBadge, EstadoBadge, formatFecha, todayBogota } from '../components/business.jsx';
 import { Avatar, Button, Card, EmptyState, PageHeader, Spinner, StatCard } from '../components/ui.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 import { formatNumber } from '../lib/format.js';
 import { useResource } from '../lib/useResource.js';
-import MiProgresoPage from './MiProgresoPage.jsx';
 import TableroPage from './TableroPage.jsx';
 
 const nombreCorto = (n) => n.replace(/^Dra?\.\s+/i, '').split(' ')[0];
@@ -132,5 +131,5 @@ export default function DashboardPage() {
   const { can } = useAuth();
   if (can('VIEW_DASHBOARD_FINANCE')) return <TableroPage />;
   if (can('MANAGE_APPOINTMENTS', 'REGISTER_SERVICES', 'CLOSE_ABSENCES')) return <OperativoHome />;
-  return <MiProgresoPage />;
+  return <Navigate to="/mi-progreso" replace />;
 }

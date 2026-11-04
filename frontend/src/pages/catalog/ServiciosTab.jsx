@@ -116,6 +116,8 @@ export default function ServiciosTab({ canWrite, showMoney }) {
   const list = servicios.data?.servicios ?? [];
   const catList = categorias.data?.categorias ?? [];
   const filtroCategorias = catList.filter((c) => c.status === 'active' || c.id === categoriaId);
+  // La Asistente no ve los puntos (la API tampoco los envía); el Colaborador sí.
+  const showPuntos = canWrite || !showMoney;
 
   return (
     <>
@@ -156,7 +158,7 @@ export default function ServiciosTab({ canWrite, showMoney }) {
                 <th className={`${th} w-[20%]`}>Categoría</th>
                 {showMoney && <th className={`${th} text-center`}>Valor público</th>}
                 {canWrite && <th className={`${th} text-center`}>Costo clínica</th>}
-                <th className={`${th} text-center`}>Puntos</th>
+                {showPuntos && <th className={`${th} text-center`}>Puntos</th>}
                 <th className={`${th} text-center`}>Estado</th>
                 {canWrite && <th className={`${th} w-28 text-center`}>Acciones</th>}
               </tr>
@@ -177,7 +179,7 @@ export default function ServiciosTab({ canWrite, showMoney }) {
                   </td>
                   {showMoney && <td className={`${td} tabular text-center font-semibold`}>{formatCOP(s.valorPublico)}</td>}
                   {canWrite && <td className={`${td} tabular text-center text-muted`}>{formatCOP(s.costoClinica)}</td>}
-                  <td className={`${td} tabular text-center`}>{formatNumber(s.puntos)}</td>
+                  {showPuntos && <td className={`${td} tabular text-center`}>{formatNumber(s.puntos)}</td>}
                   <td className={`${td} text-center`}>
                     <StatusBadge status={s.status} />
                   </td>

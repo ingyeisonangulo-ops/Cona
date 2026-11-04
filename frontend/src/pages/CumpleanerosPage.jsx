@@ -1,11 +1,59 @@
 import { useState } from 'react';
-import { Cake, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Cake, CalendarDays, ChartColumn, ChevronLeft, ChevronRight } from 'lucide-react';
 import { MESES, todayBogota } from '../components/business.jsx';
-import { Alert, Badge, Card, EmptyState, IconButton, PageHeader, Spinner, TableWrap, td, th } from '../components/ui.jsx';
+import { Alert, Badge, Card, EmptyState, IconButton, PageHeader, Segmented, Spinner, TableWrap, td, th } from '../components/ui.jsx';
 import { patch } from '../lib/api.js';
 import { useResource } from '../lib/useResource.js';
 
 const TONO_DESCUENTO = { Aplicado: 'success', Pendiente: 'warning', Vencido: 'secondary', 'No aplica': 'muted' };
+
+// Por mes del año en curso: cumpleañeros, felicitados y descuentos aplicados.
+function Resumen() {
+  const res = useResource('/pacientes/cumpleanos/resumen');
+  const mesActual = Number(todayBogota().slice(5, 7));
+  const meses = res.data?.meses ?? [];
+  const suma = (campo) => meses.reduce((a, m) => a + m[campo], 0);
+
+  if (res.error) return <Alert>{res.error}</Alert>;
+  if (res.loading && !res.data) return <Spinner />;
+  return (
+    <Card flush>
+      <TableWrap fixed minWidth="min-w-[520px]">
+        <thead>
+          <tr>
+            <th className={`${th} w-[34%]`}>Mes {res.data?.anio}</th>
+            <th className={`${th} text-center`}>Cumpleañeros</th>
+            <th className={`${th} text-center`}>Felicitados</th>
+            <th className={`${th} text-center`}>Descuento aplicado</th>
+          </tr>
+        </thead>
+        <tbody>
+          {meses.map((m) => (
+            <tr key={m.mes} className={m.mes === mesActual ? 'bg-primary-soft/60' : 'hover:bg-subtle/60'}>
+              <td className={`${td} font-semibold`}>{MESES[m.mes - 1]}</td>
+              <td className={`${td} tabular text-center`}>{m.cumpleaneros}</td>
+              <td className={`${td} tabular text-center`}>{m.felicitados}</td>
+              <td className={`${td} tabular text-center`}>{m.descuentos}</td>
+            </tr>
+          ))}
+        </tbody>
+        <tfoot>
+          <tr className="font-bold">
+            <td className="px-4 py-3">Total</td>
+            <td className="tabular px-4 py-3 text-center">{suma('cumpleaneros')}</td>
+            <td className="tabular px-4 py-3 text-center">{suma('felicitados')}</td>
+            <td className="tabular px-4 py-3 text-center">{suma('descuentos')}</td>
+          </tr>
+        </tfoot>
+      </TableWrap>
+    </Card>
+  );
+}
+
+const PESTANAS = [
+  { value: 'mes', label: 'Cumpleañeros', icon: CalendarDays },
+  { value: 'resumen', label: 'Resumen', icon: ChartColumn },
+];
 
 // Pacientes que cumplen años en un mes. Las flechas recorren los 12 meses en
 // ciclo (de diciembre pasa a enero). Años, felicitación y descuento son del año
@@ -14,6 +62,7 @@ export default function CumpleanerosPage() {
   const hoy = todayBogota();
   const mesActual = Number(hoy.slice(5, 7));
   const diaActual = Number(hoy.slice(8, 10));
+  const [pestana, setPestana] = useState('mes');
   const [mes, setMes] = useState(mesActual);
   const [marcando, setMarcando] = useState(null);
   const [error, setError] = useState('');
@@ -42,17 +91,21 @@ export default function CumpleanerosPage() {
         title="Cumpleañeros"
         description="Pacientes que cumplen años en el mes."
         actions={
-          <div className="flex items-center gap-1 rounded-xl border border-line bg-surface p-0.5">
-            <IconButton label="Mes anterior" icon={ChevronLeft} onClick={() => mover(-1)} />
-            <span className="min-w-28 text-center text-sm font-semibold" aria-live="polite">
-              {MESES[mes - 1]}
-            </span>
-            <IconButton label="Mes siguiente" icon={ChevronRight} onClick={() => mover(1)} />
-          </div>
+          pestana === 'mes' && (
+            <div className="flex items-center gap-1 rounded-xl border border-line bg-surface p-0.5">
+              <IconButton label="Mes anterior" icon={ChevronLeft} onClick={() => mover(-1)} />
+              <span className="min-w-28 text-center text-sm font-semibold" aria-live="polite">
+                {MESES[mes - 1]}
+              </span>
+              <IconButton label="Mes siguiente" icon={ChevronRight} onClick={() => mover(1)} />
+            </div>
+          )
         }
       />
-      {(res.error || error) && <Alert className="mb-4">{res.error || error}</Alert>}
-      {res.loading && res.data?.mes !== mes ? (
+      <Segmented label="Secciones de cumpleañeros" className="mb-5" value={pestana} onChange={setPestana} options={PESTANAS} />
+      {pestana === 'resumen' && <Resumen />}
+      {pestana === 'mes' && (res.error || error) && <Alert className="mb-4">{res.error || error}</Alert>}
+      {pestana === 'resumen' ? null : res.loading && res.data?.mes !== mes ? (
         <Spinner />
       ) : lista.length === 0 ? (
         <Card>
@@ -110,7 +163,7 @@ export default function CumpleanerosPage() {
           </TableWrap>
         </Card>
       )}
-      {sinFecha > 0 && (
+      {pestana === 'mes' && sinFecha > 0 && (
         <p className="mt-4 text-sm text-muted">
           {sinFecha === 1 ? '1 paciente no tiene' : `${sinFecha} pacientes no tienen`} fecha de nacimiento registrada. Se puede agregar editando sus datos en Pacientes.
         </p>

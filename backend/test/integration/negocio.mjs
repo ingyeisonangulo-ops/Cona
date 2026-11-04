@@ -226,10 +226,11 @@ try {
   ok(r.status === 200 && r.data.servicios.every((s) => s.valorPublico === undefined && s.costoClinica === undefined), 'catálogo sin cifras en dinero para Colaborador');
   r = await asi.req('GET', '/servicios');
   ok(r.status === 200 && r.data.servicios.length > 0 && r.data.servicios.every((s) => s.valorPublico > 0 && s.costoClinica === undefined), 'Asistente ve valor al público pero no el costo de la clínica');
+  ok(r.data.servicios.every((s) => s.puntos === undefined), 'Asistente no ve los puntos del catálogo');
   r = await asi.req('GET', '/servicios-realizados?estado=all');
   ok(r.status === 200 && r.data.servicios.length > 0 && r.data.servicios.every((s) => s.costoAplicado === undefined), 'servicios realizados sin costo para Asistente');
   r = await ger.req('GET', '/servicios');
-  ok(r.status === 200 && r.data.servicios.every((s) => typeof s.costoClinica === 'number'), 'Gerente ve el costo de la clínica');
+  ok(r.status === 200 && r.data.servicios.every((s) => typeof s.costoClinica === 'number' && typeof s.puntos === 'number'), 'Gerente ve el costo y los puntos');
   for (const [path, label] of [
     ['/tablero', 'tablero gerencial'],
     ['/pacientes?q=Ana', 'búsqueda de pacientes'],
@@ -292,6 +293,19 @@ try {
   ok(r.status === 200 && !r.data.servicios.some((s) => s.id === sellantes.id) && r.data.servicios.length > 0, 'el Colaborador solo ve los servicios de su cargo');
   r = await col.req('GET', `/servicios/${sellantes.id}`);
   ok(r.status === 404, 'servicio de otro cargo → 404 para el Colaborador');
+  r = await col.req('GET', '/servicios');
+  ok(r.data.servicios.every((s) => typeof s.puntos === 'number' && s.valorPublico === undefined), 'el Colaborador ve puntos pero no dinero');
+
+  const catAuxiliar = (await ger.req('POST', '/categorias', { nombre: 'Solo Auxiliar' })).data.categoria;
+  await ger.req('POST', '/servicios', { categoriaId: catAuxiliar.id, nombre: 'Esterilización', valorPublico: 10000, costoClinica: 1000, puntos: 1, cargos: ['Auxiliar'] });
+  r = await col.req('GET', '/categorias');
+  ok(r.status === 200 && r.data.categorias.length > 0 && !r.data.categorias.some((c) => c.id === catAuxiliar.id), 'el Colaborador no ve categorías sin servicios de su cargo');
+  const propios = (await col.req('GET', '/servicios')).data.servicios;
+  ok(r.data.categorias.reduce((a, c) => a + c.serviciosCount, 0) === propios.length, 'el conteo de la categoría solo incluye servicios de su cargo');
+  r = await col.req('GET', `/categorias/${catAuxiliar.id}`);
+  ok(r.status === 404, 'categoría de otro cargo → 404 para el Colaborador');
+  r = await asi.req('GET', '/categorias');
+  ok(r.data.categorias.some((c) => c.id === catAuxiliar.id), 'la Asistente ve todas las categorías para registrar');
   r = await asi.req('GET', '/mi-progreso');
   ok(r.status === 200 && r.data.puntos.total >= 5, 'Mi progreso de la Asistente cuenta sus servicios');
 
@@ -396,6 +410,16 @@ try {
   ok(r.status === 200 && (await estadoEn(mesHoy, 'Festejada')).felicitado === true, 'felicitación marcada');
   r = await asi.req('PATCH', `/pacientes/${festejada.id}/felicitacion`, { felicitado: false });
   ok(r.status === 200 && (await estadoEn(mesHoy, 'Festejada')).felicitado === false, 'felicitación desmarcada');
+
+  await asi.req('PATCH', `/pacientes/${festejada.id}/felicitacion`, { felicitado: true });
+  r = await asi.req('GET', '/pacientes/cumpleanos/resumen');
+  const deEsteMes = r.data.meses.find((m) => m.mes === mesHoy);
+  const enLista = (await asi.req('GET', `/pacientes/cumpleanos?mes=${mesHoy}`)).data.cumpleaneros;
+  ok(r.status === 200 && r.data.meses.length === 12, 'resumen con los 12 meses');
+  ok(deEsteMes.cumpleaneros === enLista.length && deEsteMes.felicitados === 1, 'resumen cuenta cumpleañeros y felicitados', JSON.stringify(deEsteMes));
+  ok(deEsteMes.descuentos === enLista.filter((c) => c.descuento === 'Aplicado').length && deEsteMes.descuentos >= 1, 'resumen cuenta quienes aplicaron el descuento');
+  r = await col.req('GET', '/pacientes/cumpleanos/resumen');
+  ok(r.status === 403, 'Colaborador no ve el resumen');
 } catch (err) {
   console.error(err);
   crashed = true;

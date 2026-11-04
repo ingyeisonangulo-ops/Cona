@@ -152,6 +152,30 @@ pacientesRouter.get(
   }),
 );
 
+// Resumen del año en curso: por mes, cuántos cumplen años, cuántos fueron
+// felicitados y cuántos usaron el convenio Cumpleaños.
+pacientesRouter.get(
+  '/cumpleanos/resumen',
+  requirePermission('SEARCH_PATIENTS'),
+  txRoute(async () => {
+    const { anio } = todayParts();
+    const { rows } = await db.query(
+      `SELECT m.mes, count(p.id)::int AS cumpleaneros,
+              count(*) FILTER (WHERE f.felicitado)::int AS felicitados,
+              count(*) FILTER (WHERE EXISTS (
+                SELECT 1 FROM servicios_realizados sr JOIN convenios c ON c.id = sr.convenio_id
+                WHERE sr.paciente_id = p.id AND c.tipo = 'cumpleanos' AND sr.estado = 'registrado'
+                  AND extract(year FROM sr.fecha) = $1 AND extract(month FROM sr.fecha) = m.mes))::int AS descuentos
+       FROM generate_series(1, 12) AS m(mes)
+       LEFT JOIN pacientes p ON extract(month FROM p.fecha_nacimiento) = m.mes
+       LEFT JOIN felicitaciones_cumpleanos f ON f.paciente_id = p.id AND f.anio = $1
+       GROUP BY m.mes ORDER BY m.mes`,
+      [anio],
+    );
+    return { anio, meses: rows };
+  }),
+);
+
 // Si el paciente ya usó el convenio Cumpleaños en el mes de la fecha indicada.
 pacientesRouter.get(
   '/:id/cumpleanos-uso',
