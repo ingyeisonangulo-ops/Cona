@@ -201,7 +201,7 @@ Cada módulo incluye **caminos felices** (✅) y **rutas de fallo** (⛔), que d
 - [ ] La casilla **Felicitación** queda guardada al recargar y se puede desmarcar. El año siguiente vuelve a estar sin marcar.
 - [ ] En **Convenios**, el Gerente define el porcentaje de **Cumpleaños**; no se le puede cambiar el nombre.
 - [ ] Sin porcentaje definido, el convenio no aparece al registrar.
-- [ ] **Registrar servicios**: el convenio Cumpleaños solo aparece en el mes de cumpleaños del paciente.
+- [ ] **Registrar servicios**: el convenio Cumpleaños solo aparece en el mes de cumpleaños del paciente, resaltado en amarillo en la lista y en el campo al elegirlo.
 - [ ] Al elegirlo en un servicio se aplica a todos los de la cuenta; quitarlo lo quita de todos. Un valor manual no recibe descuento.
 - [ ] El mismo día se puede registrar otra atención con el convenio. Otro día del mismo mes ya no aparece y se muestra el aviso.
 - [ ] Si se anula el servicio, el paciente puede volver a usarlo.

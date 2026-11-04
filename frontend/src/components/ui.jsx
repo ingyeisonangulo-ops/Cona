@@ -90,11 +90,11 @@ export function Textarea({ label, hint, error, className, ...props }) {
   );
 }
 
-export function Select({ label, hint, error, className, children, ...props }) {
+export function Select({ label, hint, error, className, selectClassName, children, ...props }) {
   return (
     <Field label={label} hint={hint} error={error} className={className}>
       {(id, describedBy) => (
-        <select id={id} aria-describedby={describedBy} className={cx(inputBase, 'pr-8')} {...props}>
+        <select id={id} aria-describedby={describedBy} className={cx(inputBase, 'pr-8', selectClassName)} {...props}>
           {children}
         </select>
       )}

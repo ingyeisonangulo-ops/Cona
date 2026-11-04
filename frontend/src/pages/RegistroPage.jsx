@@ -258,10 +258,16 @@ export default function RegistroPage() {
                         </option>
                       ))}
                     </Select>
-                    <Select label="Convenio" value={item.convenioId} disabled={Boolean(item.otros)} onChange={(e) => setConvenio(item.key, e.target.value)}>
+                    <Select
+                      label="Convenio"
+                      value={item.convenioId}
+                      disabled={Boolean(item.otros)}
+                      selectClassName={item.convenioId && item.convenioId === convenioCumple?.id ? 'bg-yellow-200! font-semibold' : undefined}
+                      onChange={(e) => setConvenio(item.key, e.target.value)}
+                    >
                       <option value="">Sin convenio</option>
                       {conveniosVisibles.map((c) => (
-                        <option key={c.id} value={c.id}>
+                        <option key={c.id} value={c.id} className={c.tipo === 'cumpleanos' ? 'bg-yellow-200 font-semibold' : undefined}>
                           {c.nombre}
                         </option>
                       ))}
