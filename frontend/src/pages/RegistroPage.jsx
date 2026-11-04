@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
 import { Ban, Check, CheckCircle2, History, Pencil, Plus, Search, Trash2, UserCheck } from 'lucide-react';
 import { CheckboxNote, RegistrosRecientes } from './registro/Recientes.jsx';
-import { MEDIOS_ORIGEN, colaboradoresPara, nombreConCargo, todayBogota, useCatalogos } from '../components/business.jsx';
+import { MEDIOS_ORIGEN, colaboradoresPara, formatFecha, nombreConCargo, porcentajeUnico, todayBogota, useCatalogos } from '../components/business.jsx';
 import { Alert, Button, Card, IconButton, Input, PageHeader, Select } from '../components/ui.jsx';
 import { get, post } from '../lib/api.js';
 import { formatCOP } from '../lib/format.js';
@@ -10,14 +10,13 @@ import { useResource } from '../lib/useResource.js';
 const EMPTY_PACIENTE = { nombre: '', apellido: '', telefono: '', fechaNacimiento: '', medioOrigen: '' };
 const newItem = () => ({ key: crypto.randomUUID(), servicioId: '', colaboradorId: '', convenioId: '', otros: null });
 
-// Estimado en pantalla; el valor definitivo lo calcula el servidor. El descuento
-// de cumpleaños no se suma al del convenio: vale el mayor.
-function previewValor(item, servicios, convenios, cumpleanosPct) {
+// Estimado en pantalla; el valor definitivo lo calcula el servidor.
+function previewValor(item, servicios, convenios) {
   if (item.otros) return Number(item.otros.valor || 0);
   const s = servicios.find((x) => x.id === item.servicioId);
   if (!s) return null;
   const c = convenios.find((x) => x.id === item.convenioId);
-  const pct = Math.max(Number(c?.porcentajeDescuentoCategoria?.[s.categoriaId] ?? 0), cumpleanosPct);
+  const pct = c?.tipo === 'cumpleanos' ? (porcentajeUnico(c.porcentajeDescuentoCategoria) ?? 0) : Number(c?.porcentajeDescuentoCategoria?.[s.categoriaId] ?? 0);
   return Math.round(s.valorPublico * (100 - pct)) / 100;
 }
 
@@ -52,7 +51,6 @@ function Pasos({ actual }) {
 
 export default function RegistroPage() {
   const cat = useCatalogos();
-  const descuento = useResource('/pacientes/descuento-cumpleanos');
   const [cedula, setCedula] = useState('');
   const [lookup, setLookup] = useState(null); // { existe, paciente } | null
   const [buscando, setBuscando] = useState(false);
@@ -99,8 +97,29 @@ export default function RegistroPage() {
   }
 
   const setItem = (key, patch) => setItems((list) => list.map((i) => (i.key === key ? { ...i, ...patch } : i)));
-  const cumpleanosPct = paciente.fechaNacimiento && paciente.fechaNacimiento.slice(5, 7) === fecha.slice(5, 7) ? (descuento.data?.porcentaje ?? 0) : 0;
-  const total = items.reduce((a, i) => a + (previewValor(i, cat.servicios, cat.convenios, cumpleanosPct) ?? 0), 0);
+
+  // Convenio Cumpleaños: solo en el mes de cumpleaños y en un único día de ese
+  // mes, para toda la cuenta (todos los servicios salvo los de valor manual).
+  const convenioCumple = cat.convenios.find((c) => c.tipo === 'cumpleanos');
+  const cumplePct = porcentajeUnico(convenioCumple?.porcentajeDescuentoCategoria) ?? 0;
+  const pacienteId = lookup?.paciente?.id;
+  const uso = useResource(pacienteId ? `/pacientes/${pacienteId}/cumpleanos-uso?fecha=${fecha}` : null);
+  const usadoEn = pacienteId ? (uso.data?.usadoEn ?? null) : null;
+  const enMesCumple = Boolean(lookup) && paciente.fechaNacimiento?.slice(5, 7) === fecha.slice(5, 7);
+  const cumpleDisponible = enMesCumple && cumplePct > 0 && (!usadoEn || usadoEn === fecha);
+  const conveniosVisibles = cat.convenios.filter((c) => c.tipo !== 'cumpleanos' || cumpleDisponible);
+  // Si cambia la fecha o el paciente y deja de aplicar, el servicio queda sin convenio.
+  const itemsVigentes = items.map((i) => (i.convenioId && i.convenioId === convenioCumple?.id && !cumpleDisponible ? { ...i, convenioId: '' } : i));
+  const cumpleActivo = itemsVigentes.some((i) => i.convenioId && i.convenioId === convenioCumple?.id);
+
+  function setConvenio(key, convenioId) {
+    const cambiaCumple = convenioId === convenioCumple?.id || items.find((i) => i.key === key)?.convenioId === convenioCumple?.id;
+    if (!cambiaCumple) return setItem(key, { convenioId });
+    // El convenio Cumpleaños se pone o se quita en toda la cuenta.
+    setItems((list) => list.map((i) => (i.otros ? i : { ...i, convenioId: convenioId === convenioCumple?.id ? convenioId : i.key === key ? convenioId : '' })));
+  }
+
+  const total = itemsVigentes.reduce((a, i) => a + (previewValor(i, cat.servicios, cat.convenios) ?? 0), 0);
   const listo = Boolean(lookup) && items.every((i) => i.servicioId && i.colaboradorId);
 
   async function onSubmit(e) {
@@ -113,7 +132,7 @@ export default function RegistroPage() {
         cedula: cedula.trim(),
         fecha,
         paciente: existe ? undefined : paciente,
-        items: items.map((i) => ({
+        items: itemsVigentes.map((i) => ({
           servicioId: i.servicioId,
           colaboradorId: i.colaboradorId,
           convenioId: i.convenioId || null,
@@ -177,9 +196,10 @@ export default function RegistroPage() {
             </Alert>
           )}
           {lookup && !existe && <Alert tone="success">Paciente nuevo: complete sus datos.</Alert>}
-          {lookup && cumpleanosPct > 0 && (
-            <Alert tone="success">Mes de cumpleaños: {cumpleanosPct}% de descuento en sus servicios. Si tiene convenio, se aplica el mayor de los dos.</Alert>
+          {cumpleDisponible && (
+            <Alert tone="success">Mes de cumpleaños: puede elegir el convenio Cumpleaños ({cumplePct}%) para toda la cuenta de este día.</Alert>
           )}
+          {enMesCumple && usadoEn && usadoEn !== fecha && <Alert>Ya usó el convenio Cumpleaños este mes ({formatFecha(usadoEn)}).</Alert>}
 
           <fieldset disabled={personalDisabled} className="grid gap-3 disabled:opacity-70 md:grid-cols-2">
             <legend className="sr-only">Datos personales</legend>
@@ -204,8 +224,8 @@ export default function RegistroPage() {
           {cat.error && <Alert>{cat.error}</Alert>}
           <fieldset disabled={!lookup} className="flex flex-col gap-3 disabled:opacity-60">
             <legend className="sr-only">Servicios</legend>
-            {items.map((item, idx) => {
-              const valor = previewValor(item, cat.servicios, cat.convenios, cumpleanosPct);
+            {itemsVigentes.map((item, idx) => {
+              const valor = previewValor(item, cat.servicios, cat.convenios);
               return (
                 <div key={item.key} className="rounded-2xl border border-line p-4">
                   <div className="mb-2 flex items-center justify-between">
@@ -238,9 +258,9 @@ export default function RegistroPage() {
                         </option>
                       ))}
                     </Select>
-                    <Select label="Convenio" value={item.convenioId} disabled={Boolean(item.otros)} onChange={(e) => setItem(item.key, { convenioId: e.target.value })}>
+                    <Select label="Convenio" value={item.convenioId} disabled={Boolean(item.otros)} onChange={(e) => setConvenio(item.key, e.target.value)}>
                       <option value="">Sin convenio</option>
-                      {cat.convenios.map((c) => (
+                      {conveniosVisibles.map((c) => (
                         <option key={c.id} value={c.id}>
                           {c.nombre}
                         </option>
@@ -264,7 +284,7 @@ export default function RegistroPage() {
                 </div>
               );
             })}
-            <Button variant="dashed" icon={Plus} onClick={() => setItems((l) => [...l, newItem()])} className="w-full">
+            <Button variant="dashed" icon={Plus} onClick={() => setItems((l) => [...l, { ...newItem(), convenioId: cumpleActivo ? convenioCumple.id : '' }])} className="w-full">
               Agregar servicio
             </Button>
           </fieldset>

@@ -290,6 +290,7 @@ const mapConvenio = (r) => ({
   nombre: r.nombre,
   entidad: r.entidad,
   porcentajeDescuentoCategoria: r.porcentaje_descuento_categoria,
+  tipo: r.tipo,
   status: r.status,
   createdAt: r.created_at,
   updatedAt: r.updated_at,
@@ -358,9 +359,11 @@ conveniosRouter.put(
       const d = parse(convenioSchema, req.body ?? {});
       const prev = mapConvenio(requireFound(await findConvenio(id)));
       await assertCategorias(d.porcentajeDescuentoCategoria);
+      // El convenio Cumpleaños es del sistema: solo cambia su porcentaje.
+      const sistema = prev.tipo === 'cumpleanos';
       await db.query(
         'UPDATE convenios SET nombre = $1, entidad = $2, porcentaje_descuento_categoria = $3::jsonb WHERE id = $4',
-        [d.nombre, d.entidad, JSON.stringify(d.porcentajeDescuentoCategoria), id],
+        [sistema ? prev.nombre : d.nombre, sistema ? prev.entidad : d.entidad, JSON.stringify(d.porcentajeDescuentoCategoria), id],
       );
       const { nombre, entidad, porcentajeDescuentoCategoria } = prev;
       res.locals.audit = { metadata: { before: { nombre, entidad, porcentajeDescuentoCategoria }, after: d } };

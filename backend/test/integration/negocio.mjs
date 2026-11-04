@@ -325,65 +325,77 @@ try {
   r = await asi.req('PUT', `/pacientes/${bruno.id}`, { nombre: 'Bruno', apellido: 'Díaz', telefono: '3000000003', medioOrigen: 'Otro', fechaNacimiento: '2001-06-03' });
   ok(r.status === 200 && r.data.paciente.fechaNacimiento === '2001-06-03', 'editar corrige la fecha de nacimiento');
 
-  // ----------------------------------------------------- Descuento de cumpleaños (migración 010)
+  // ----------------------------------------------------- Convenio Cumpleaños (migración 011)
   const [aHoy, mHoy, dHoy] = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Bogota' }).format(new Date()).split('-');
   const mesHoy = Number(mHoy);
+  const hoyYmd = `${aHoy}-${mHoy}-${dHoy}`;
   const nacimientoDelMes = `${Number(aHoy) - 28}-${mHoy}-${dHoy}`;
-  const otroMes = String((mesHoy % 12) + 1).padStart(2, '0');
+  const mesSiguiente = (mesHoy % 12) + 1;
+  const mesAnterior = ((mesHoy + 10) % 12) + 1;
+  const mm = (n) => String(n).padStart(2, '0');
   const nuevoPaciente = (nombre, fechaNacimiento) => ({ nombre, apellido: 'Cumple', telefono: '3000000004', medioOrigen: 'Otro', fechaNacimiento });
   const item = { servicioId: consulta.id, colaboradorId };
 
-  r = await asi.req('POST', '/atenciones', { cedula: '7700200', paciente: nuevoPaciente('Sinpct', nacimientoDelMes), items: [item] });
-  ok(r.status === 201 && r.data.servicios[0].valorCobrado === 60000 && !r.data.servicios[0].descuentoCumpleanos, 'sin porcentaje definido no hay descuento');
-  r = await asi.req('PUT', '/configuracion/cumpleanos', { porcentaje: 20 });
-  ok(r.status === 403, 'la Asistente no define el descuento de cumpleaños');
-  r = await ger.req('PUT', '/configuracion/cumpleanos', { porcentaje: 120 });
-  ok(r.status === 400, 'descuento mayor a 100% rechazado');
-  r = await ger.req('PUT', '/configuracion/cumpleanos', { porcentaje: 20 });
-  ok(r.status === 200 && r.data.porcentaje === 20, 'el Gerente define el descuento de cumpleaños');
-  r = await ger.req('PUT', '/configuracion/recurrencia', { puntosNivel60: 25, puntosNivel80: 50 });
-  r = await asi.req('GET', '/pacientes/descuento-cumpleanos');
-  ok(r.status === 200 && r.data.porcentaje === 20, 'configurar recurrencia no borra el descuento de cumpleaños');
+  const convenioCumple = (await ger.req('GET', '/convenios')).data.convenios.find((c) => c.tipo === 'cumpleanos');
+  ok(convenioCumple?.nombre === 'Cumpleaños', 'existe el convenio Cumpleaños');
+  const conCumple = { ...item, convenioId: convenioCumple.id };
+  r = await asi.req('PUT', `/convenios/${convenioCumple.id}`, { nombre: 'Cumpleaños', entidad: 'Clínica', porcentajeDescuentoCategoria: { [consulta.categoriaId]: 20 } });
+  ok(r.status === 403, 'la Asistente no define el porcentaje');
+  r = await ger.req('PUT', `/convenios/${convenioCumple.id}`, { nombre: 'Otro nombre', entidad: 'Otra', porcentajeDescuentoCategoria: { [consulta.categoriaId]: 20 } });
+  ok(r.status === 200 && r.data.convenio.nombre === 'Cumpleaños' && r.data.convenio.tipo === 'cumpleanos', 'el Gerente define el porcentaje; el nombre no cambia');
+
+  r = await asi.req('POST', '/atenciones', { cedula: '7700200', paciente: nuevoPaciente('Otromes', `1990-${mm(mesSiguiente)}-10`), items: [conCumple] });
+  ok(r.status === 400 && r.data.error.code === 'CUMPLEANOS_FUERA_DE_MES', 'fuera del mes de cumpleaños no se puede aplicar', JSON.stringify(r.data));
+  r = await asi.req('POST', '/atenciones', { cedula: '7700200', paciente: nuevoPaciente('Otromes', `1990-${mm(mesSiguiente)}-10`), items: [item] });
+  ok(r.status === 201 && r.data.servicios[0].valorCobrado === 60000, 'sin el convenio no hay descuento');
 
   r = await asi.req('POST', '/atenciones', {
     cedula: '7700201',
     paciente: nuevoPaciente('Festejada', nacimientoDelMes),
-    items: [item, { ...item, convenioId: convenio.id }, { ...item, otros: { valor: 70000, motivo: 'Tarifa especial' } }],
+    items: [conCumple, { servicioId: resina.id, colaboradorId }, { ...item, otros: { valor: 70000, motivo: 'Tarifa especial' } }],
   });
-  const [srSolo, srConvenio, srManual] = r.data.servicios.sort((a, b) => a.valorCobrado - b.valorCobrado || (a.convenioId ? 1 : -1) || 0);
-  ok(r.status === 201 && srSolo.valorCobrado === 48000 && srSolo.descuentoCumpleanos, 'mes de cumpleaños: 60.000 − 20%', JSON.stringify(r.data.servicios));
-  ok(srConvenio.valorCobrado === 48000 && srConvenio.convenioId === null, 'gana el mayor: 20% de cumpleaños sobre 10% de convenio');
-  ok(srManual.valorCobrado === 70000 && !srManual.descuentoCumpleanos, 'el valor manual no recibe descuento de cumpleaños');
-  r = await asi.req('POST', '/atenciones', { cedula: '7700202', paciente: nuevoPaciente('Otromes', `1990-${otroMes}-10`), items: [item] });
-  ok(r.status === 201 && r.data.servicios[0].valorCobrado === 60000, 'fuera del mes de cumpleaños no hay descuento');
+  ok(r.status === 201, 'aplicar el convenio Cumpleaños', JSON.stringify(r.data));
+  const cuenta = r.data.servicios;
+  ok(cuenta.some((x) => x.valorCobrado === 48000) && cuenta.some((x) => x.valorCobrado === 120000), 'el descuento cubre toda la cuenta y todas las categorías', JSON.stringify(cuenta));
+  ok(cuenta.filter((x) => x.convenioId === convenioCumple.id).length === 2, 'los servicios de la cuenta quedan con el convenio');
+  ok(cuenta.find((x) => x.valorManual).valorCobrado === 70000 && !cuenta.find((x) => x.valorManual).convenioId, 'el valor manual no recibe el descuento');
+  const pacienteCumple = r.data.paciente;
+  const srCumple = cuenta.find((x) => x.valorCobrado === 48000);
 
-  await ger.req('PUT', '/configuracion/cumpleanos', { porcentaje: 5 });
-  r = await asi.req('POST', '/atenciones', { cedula: '7700203', paciente: nuevoPaciente('Conconvenio', nacimientoDelMes), items: [{ ...item, convenioId: convenio.id }] });
-  const srMayor = r.data.servicios[0];
-  ok(srMayor.valorCobrado === 54000 && srMayor.convenioId === convenio.id && !srMayor.descuentoCumpleanos, 'gana el mayor: 10% de convenio sobre 5% de cumpleaños');
-  await ger.req('PUT', '/configuracion/cumpleanos', { porcentaje: 20 });
+  r = await asi.req('POST', '/atenciones', { cedula: '7700201', items: [conCumple] });
+  ok(r.status === 201 && r.data.servicios[0].valorCobrado === 48000, 'el mismo día se puede registrar otro servicio con el descuento');
+  r = await asi.req('GET', `/pacientes/${pacienteCumple.id}/cumpleanos-uso?fecha=${hoyYmd}`);
+  ok(r.status === 200 && r.data.usadoEn === hoyYmd, 'consulta del día en que se usó');
+  if (dHoy !== '01') {
+    r = await asi.req('POST', '/atenciones', { cedula: '7700201', fecha: `${aHoy}-${mHoy}-01`, items: [conCumple] });
+    ok(r.status === 400 && r.data.error.code === 'CUMPLEANOS_YA_USADO', 'otro día del mes se rechaza: una vez por mes', JSON.stringify(r.data));
+  }
+  r = await asi.req('PUT', `/servicios-realizados/${srCumple.id}`, { ...conCumple, fecha: `${Number(aHoy) - 1}-${mm(mesSiguiente)}-05` });
+  ok(r.status === 400 && r.data.error.code === 'CUMPLEANOS_FUERA_DE_MES', 'editar no permite sacarlo del mes de cumpleaños', JSON.stringify(r.data));
 
-  r = await asi.req('GET', `/pacientes/cumpleanos?mes=${mesHoy}`);
-  const fila = (n) => r.data.cumpleaneros.find((c) => c.nombre === `${n} Cumple`);
-  ok(fila('Festejada')?.anios === 28 && fila('Festejada')?.dia === Number(dHoy), 'años que cumple en el año en curso');
-  ok(fila('Festejada')?.descuento === 'Aplicado' && fila('Sinpct')?.descuento === 'Pendiente', 'descuento Aplicado o Pendiente');
-  ok(r.data.descuentoPct === 20 && fila('Festejada')?.felicitado === false, 'porcentaje vigente y felicitación sin marcar');
+  r = await asi.req('POST', '/atenciones', { cedula: '7700203', paciente: nuevoPaciente('Pendiente', nacimientoDelMes), items: [{ ...item, convenioId: convenio.id }] });
+  ok(r.status === 201 && r.data.servicios[0].valorCobrado === 54000, 'otro convenio en su mes de cumpleaños no gasta el de cumpleaños');
+  r = await asi.req('POST', '/pacientes', { cedula: '7700204', ...nuevoPaciente('Vencida', `1990-${mm(mesAnterior)}-10`) });
+  ok(r.status === 201, 'paciente de otro mes');
 
-  const festejada = fila('Festejada');
+  r = await asi.req('POST', '/atenciones', { cedula: '7700205', paciente: nuevoPaciente('Anulada', nacimientoDelMes), items: [conCumple] });
+  await ger.req('PATCH', `/servicios-realizados/${r.data.servicios[0].id}/anular`, { motivo: 'Registro duplicado' });
+
+  const estadoEn = async (mes, nombre) => (await asi.req('GET', `/pacientes/cumpleanos?mes=${mes}`)).data.cumpleaneros.find((c) => c.nombre === `${nombre} Cumple`);
+  ok((await estadoEn(mesHoy, 'Festejada'))?.descuento === 'Aplicado', 'quien lo usó: Aplicado');
+  ok((await estadoEn(mesHoy, 'Pendiente'))?.descuento === 'Pendiente', 'mes actual sin usar: Pendiente');
+  ok((await estadoEn(mesHoy, 'Anulada'))?.descuento === 'Pendiente', 'un servicio anulado no cuenta como usado');
+  if (mesAnterior < mesHoy) ok((await estadoEn(mesAnterior, 'Vencida'))?.descuento === 'Vencido', 'mes ya pasado sin usar: Vencido');
+  if (mesSiguiente > mesHoy) ok((await estadoEn(mesSiguiente, 'Otromes'))?.descuento === 'No aplica', 'mes que no ha llegado: No aplica');
+  const festejada = await estadoEn(mesHoy, 'Festejada');
+  ok(festejada.anios === 28 && festejada.dia === Number(dHoy) && festejada.felicitado === false, 'años que cumple y felicitación sin marcar');
+
   r = await col.req('PATCH', `/pacientes/${festejada.id}/felicitacion`, { felicitado: true });
   ok(r.status === 403, 'Colaborador no marca felicitaciones');
   r = await asi.req('PATCH', `/pacientes/${festejada.id}/felicitacion`, { felicitado: true });
-  ok(r.status === 200, 'marcar felicitación');
-  r = await asi.req('GET', `/pacientes/cumpleanos?mes=${mesHoy}`);
-  ok(fila('Festejada').felicitado === true, 'felicitación marcada');
+  ok(r.status === 200 && (await estadoEn(mesHoy, 'Festejada')).felicitado === true, 'felicitación marcada');
   r = await asi.req('PATCH', `/pacientes/${festejada.id}/felicitacion`, { felicitado: false });
-  r = await asi.req('GET', `/pacientes/cumpleanos?mes=${mesHoy}`);
-  ok(fila('Festejada').felicitado === false, 'felicitación desmarcada');
-
-  r = await asi.req('POST', '/atenciones', { cedula: '7700204', paciente: nuevoPaciente('Anulada', nacimientoDelMes), items: [item] });
-  await ger.req('PATCH', `/servicios-realizados/${r.data.servicios[0].id}/anular`, { motivo: 'Registro duplicado' });
-  r = await asi.req('GET', `/pacientes/cumpleanos?mes=${mesHoy}`);
-  ok(fila('Anulada').descuento === 'Pendiente', 'un servicio anulado no cuenta como descuento usado');
+  ok(r.status === 200 && (await estadoEn(mesHoy, 'Festejada')).felicitado === false, 'felicitación desmarcada');
 } catch (err) {
   console.error(err);
   crashed = true;

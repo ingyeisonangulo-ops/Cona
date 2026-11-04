@@ -52,9 +52,18 @@ export const mapPaciente = (r) => ({
   medioOrigen: r.medio_origen,
 });
 
-export async function descuentoCumpleanosPct() {
-  const { rows } = await db.query('SELECT descuento_cumpleanos_pct FROM configuracion_recurrencia');
-  return Number(rows[0]?.descuento_cumpleanos_pct ?? 0);
+// Día en que el paciente usó el convenio Cumpleaños en el mes de `fecha` (null si
+// no lo ha usado). Un servicio anulado no cuenta. `excluirId`: el servicio en edición.
+export async function usoConvenioCumpleanos(pacienteId, fecha, excluirId = null) {
+  const { desde, hasta } = monthBounds(Number(fecha.slice(0, 4)), Number(fecha.slice(5, 7)));
+  const { rows } = await db.query(
+    `SELECT min(sr.fecha) AS fecha
+     FROM servicios_realizados sr JOIN convenios c ON c.id = sr.convenio_id
+     WHERE sr.paciente_id = $1 AND c.tipo = 'cumpleanos' AND sr.estado = 'registrado'
+       AND sr.fecha >= $2::date AND sr.fecha < $3::date AND ($4::uuid IS NULL OR sr.id <> $4)`,
+    [pacienteId, desde, hasta, excluirId],
+  );
+  return rows[0].fecha;
 }
 
 export async function findPacienteByCedula(cedula) {
@@ -98,7 +107,14 @@ pacientesRouter.get(
   }),
 );
 
-// Cumpleañeros de un mes (va antes de '/:id'). Solo nombre y día.
+// Estado del descuento en el año en curso: el mes de cumpleaños ya pasó, es este o aún no llega.
+const estadoDescuento = (aplicado, mes, mesActual) => {
+  if (aplicado) return 'Aplicado';
+  if (mes < mesActual) return 'Vencido';
+  return mes === mesActual ? 'Pendiente' : 'No aplica';
+};
+
+// Cumpleañeros de un mes (va antes de '/:id'). Sin datos de contacto.
 pacientesRouter.get(
   '/cumpleanos',
   requirePermission('SEARCH_PATIENTS'),
@@ -110,8 +126,8 @@ pacientesRouter.get(
       `SELECT p.id, p.nombre, p.apellido, extract(day FROM p.fecha_nacimiento)::int AS dia,
               $2::int - extract(year FROM p.fecha_nacimiento)::int AS anios,
               coalesce(f.felicitado, false) AS felicitado,
-              EXISTS (SELECT 1 FROM servicios_realizados sr
-                      WHERE sr.paciente_id = p.id AND sr.descuento_cumpleanos AND sr.estado = 'registrado'
+              EXISTS (SELECT 1 FROM servicios_realizados sr JOIN convenios c ON c.id = sr.convenio_id
+                      WHERE sr.paciente_id = p.id AND c.tipo = 'cumpleanos' AND sr.estado = 'registrado'
                         AND sr.fecha >= $3::date AND sr.fecha < $4::date) AS descuento_aplicado
        FROM pacientes p
        LEFT JOIN felicitaciones_cumpleanos f ON f.paciente_id = p.id AND f.anio = $2
@@ -123,25 +139,29 @@ pacientesRouter.get(
     return {
       mes,
       anio: hoy.anio,
-      descuentoPct: await descuentoCumpleanosPct(),
       cumpleaneros: rows.map((r) => ({
         id: r.id,
         nombre: `${r.nombre} ${r.apellido}`,
         dia: r.dia,
         anios: r.anios,
         felicitado: r.felicitado,
-        descuento: r.descuento_aplicado ? 'Aplicado' : 'Pendiente',
+        descuento: estadoDescuento(r.descuento_aplicado, mes, hoy.mes),
       })),
       sinFecha,
     };
   }),
 );
 
-// Porcentaje vigente, para mostrarlo al registrar servicios.
+// Si el paciente ya usó el convenio Cumpleaños en el mes de la fecha indicada.
 pacientesRouter.get(
-  '/descuento-cumpleanos',
+  '/:id/cumpleanos-uso',
   requirePermission('REGISTER_SERVICES'),
-  txRoute(async () => ({ porcentaje: await descuentoCumpleanosPct() })),
+  txRoute(async (req) => {
+    const { id } = parse(idParam, req.params);
+    const { fecha } = parse(z.object({ fecha: z.iso.date('Fecha inválida') }), req.query);
+    requireFound((await db.query('SELECT id FROM pacientes WHERE id = $1', [id])).rows[0]);
+    return { usadoEn: await usoConvenioCumpleanos(id, fecha) };
+  }),
 );
 
 // Marca o desmarca la felicitación del año en curso.

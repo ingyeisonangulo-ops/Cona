@@ -170,3 +170,9 @@ export function colaboradoresPara(servicioId, servicios, colaboradores) {
   return s?.cargos ? colaboradores.filter((c) => s.cargos.includes(c.cargo)) : colaboradores;
 }
 export const nombreConCargo = (c) => (c.cargo ? `${c.nombre} · ${c.cargo}` : c.nombre);
+
+// Porcentaje de un convenio con un solo valor (el mayor, si tuviera varios).
+export const porcentajeUnico = (map) => {
+  const valores = Object.values(map ?? {}).map(Number);
+  return valores.length ? Math.max(...valores) : null;
+};

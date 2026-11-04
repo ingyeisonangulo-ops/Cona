@@ -1,79 +1,11 @@
 import { useState } from 'react';
-import { Cake, ChevronLeft, ChevronRight, Percent } from 'lucide-react';
+import { Cake, ChevronLeft, ChevronRight } from 'lucide-react';
 import { MESES, todayBogota } from '../components/business.jsx';
-import { Alert, Badge, Button, Card, EmptyState, IconButton, Input, PageHeader, Spinner, TableWrap, td, th } from '../components/ui.jsx';
-import { useAuth } from '../context/AuthContext.jsx';
-import { patch, put } from '../lib/api.js';
+import { Alert, Badge, Card, EmptyState, IconButton, PageHeader, Spinner, TableWrap, td, th } from '../components/ui.jsx';
+import { patch } from '../lib/api.js';
 import { useResource } from '../lib/useResource.js';
 
-// El Gerente define el porcentaje; el resto del personal solo lo ve.
-function DescuentoCumpleanos({ porcentaje, onSaved }) {
-  const { can } = useAuth();
-  const [valor, setValor] = useState(null); // null: sin editar
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState('');
-  const activo = porcentaje > 0;
-
-  async function guardar(e) {
-    e.preventDefault();
-    setSaving(true);
-    setError('');
-    try {
-      await put('/configuracion/cumpleanos', { porcentaje: Number(valor) });
-      setValor(null);
-      onSaved();
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  return (
-    <Card compact className="mb-4">
-      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-        <div className="flex items-center gap-3">
-          <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-primary-soft text-primary">
-            <Percent className="size-[18px]" aria-hidden />
-          </span>
-          <div>
-            <p className="text-sm font-semibold">Descuento de cumpleaños: {activo ? `${porcentaje}%` : 'sin definir'}</p>
-            <p className="text-xs text-muted">Para los servicios del mes de cumpleaños. Si hay convenio, se aplica el mayor de los dos.</p>
-          </div>
-        </div>
-        {can('MANAGE_COLLABORATORS') &&
-          (valor === null ? (
-            <Button variant="outline" onClick={() => setValor(String(porcentaje))}>
-              {activo ? 'Cambiar' : 'Definir'}
-            </Button>
-          ) : (
-            <form onSubmit={guardar} className="flex items-end gap-2">
-              <Input
-                label="Porcentaje (%)"
-                type="number"
-                inputMode="decimal"
-                min="0"
-                max="100"
-                step="0.01"
-                required
-                autoFocus
-                className="w-32"
-                value={valor}
-                onChange={(e) => setValor(e.target.value)}
-              />
-              <Button variant="outline" onClick={() => setValor(null)}>
-                Cancelar
-              </Button>
-              <Button type="submit" loading={saving}>
-                Guardar
-              </Button>
-            </form>
-          ))}
-      </div>
-      {error && <Alert className="mt-3">{error}</Alert>}
-    </Card>
-  );
-}
+const TONO_DESCUENTO = { Aplicado: 'success', Pendiente: 'warning', Vencido: 'secondary', 'No aplica': 'muted' };
 
 // Pacientes que cumplen años en un mes. Las flechas recorren los 12 meses en
 // ciclo (de diciembre pasa a enero). Años, felicitación y descuento son del año
@@ -119,7 +51,6 @@ export default function CumpleanerosPage() {
           </div>
         }
       />
-      {res.data && <DescuentoCumpleanos porcentaje={res.data.descuentoPct} onSaved={res.reload} />}
       {(res.error || error) && <Alert className="mb-4">{res.error || error}</Alert>}
       {res.loading && res.data?.mes !== mes ? (
         <Spinner />
@@ -168,7 +99,7 @@ export default function CumpleanerosPage() {
                       </label>
                     </td>
                     <td className={`${td} text-center`}>
-                      <Badge tone={p.descuento === 'Aplicado' ? 'success' : 'warning'} dot>
+                      <Badge tone={TONO_DESCUENTO[p.descuento]} dot>
                         {p.descuento}
                       </Badge>
                     </td>

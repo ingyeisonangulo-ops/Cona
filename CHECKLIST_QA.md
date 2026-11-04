@@ -194,13 +194,15 @@ Cada módulo incluye **caminos felices** (✅) y **rutas de fallo** (⛔), que d
 - [ ] Debajo de la lista se indica cuántos pacientes no tienen fecha de nacimiento.
 - [ ] Gerente, Asistente y Super Admin ven el apartado; el Colaborador no lo ve en el menú y la API responde 403.
 
-## 15. Felicitaciones y descuento de cumpleaños
+## 15. Felicitaciones y convenio Cumpleaños
 
 - [ ] En **Cumpleañeros**, el día de quien cumple años hoy aparece en amarillo (solo en el mes actual).
 - [ ] La columna **Años** muestra los que cumple este año.
 - [ ] La casilla **Felicitación** queda guardada al recargar y se puede desmarcar. El año siguiente vuelve a estar sin marcar.
-- [ ] Como Gerente, **Definir/Cambiar** fija el porcentaje; la Asistente lo ve pero no puede cambiarlo.
-- [ ] Con 0 % no se aplica ningún descuento.
-- [ ] **Registrar servicios** en el mes de cumpleaños muestra el aviso y el valor con descuento; fuera de ese mes, no.
-- [ ] Con convenio se aplica el mayor de los dos, sin sumarlos. Un valor manual no recibe descuento.
-- [ ] La columna **Descuento** pasa a **Aplicado** al registrar el servicio y vuelve a **Pendiente** si ese servicio se anula.
+- [ ] En **Convenios**, el Gerente define el porcentaje de **Cumpleaños**; no se le puede cambiar el nombre.
+- [ ] Sin porcentaje definido, el convenio no aparece al registrar.
+- [ ] **Registrar servicios**: el convenio Cumpleaños solo aparece en el mes de cumpleaños del paciente.
+- [ ] Al elegirlo en un servicio se aplica a todos los de la cuenta; quitarlo lo quita de todos. Un valor manual no recibe descuento.
+- [ ] El mismo día se puede registrar otra atención con el convenio. Otro día del mismo mes ya no aparece y se muestra el aviso.
+- [ ] Si se anula el servicio, el paciente puede volver a usarlo.
+- [ ] Columna **Descuento**: **Aplicado** si lo usó; si no, **Vencido** en meses pasados, **Pendiente** en el mes actual y **No aplica** en meses futuros.

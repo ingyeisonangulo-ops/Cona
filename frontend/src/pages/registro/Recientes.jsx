@@ -83,7 +83,7 @@ function EditModal({ sr, onClose, onSaved }) {
         </Select>
         <Select label="Convenio" value={form.convenioId} disabled={Boolean(form.otros)} onChange={set('convenioId')}>
           <option value="">Sin convenio</option>
-          {cat.convenios.map((c) => (
+          {cat.convenios.filter((c) => c.tipo !== 'cumpleanos' || c.id === sr.convenioId).map((c) => (
             <option key={c.id} value={c.id}>
               {c.nombre}
             </option>

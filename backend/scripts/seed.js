@@ -113,6 +113,12 @@ async function main() {
       password: superPassword,
     });
 
+    await client.query(
+      `INSERT INTO convenios (organization_id, nombre, entidad, tipo) VALUES ($1, 'Cumpleaños', 'Clínica', 'cumpleanos')
+       ON CONFLICT DO NOTHING`,
+      [orgId],
+    );
+
     let createdDev = false;
     if (!isProd) {
       const domain = process.env.SEED_DEV_EMAIL_DOMAIN?.trim() || 'nuevoamanecer.test';

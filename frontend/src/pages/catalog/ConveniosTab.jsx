@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { BadgePercent, Check } from 'lucide-react';
+import { porcentajeUnico } from '../../components/business.jsx';
 import { Alert, Badge, Button, Card, EmptyState, Input, Modal, Spinner, StatusBadge, TableWrap, cx, td, th } from '../../components/ui.jsx';
 import { post, put } from '../../lib/api.js';
 import { useResource } from '../../lib/useResource.js';
@@ -8,11 +9,6 @@ import { RowActions, Toolbar, qs, useDebounced, useStatusToggle } from './shared
 // Un convenio tiene un solo porcentaje de descuento que se aplica a las
 // categorías elegidas. Se guarda en el mismo formato { categoriaId: % } que
 // usa el cálculo del servidor, con el mismo valor para cada categoría.
-const porcentajeUnico = (map) => {
-  const valores = [...new Set(Object.values(map ?? {}).map(Number))];
-  return valores.length ? Math.max(...valores) : null;
-};
-
 function ConvenioModal({ initial, categorias, onClose, onSaved }) {
   const actual = initial?.porcentajeDescuentoCategoria ?? {};
   const [nombre, setNombre] = useState(initial?.nombre ?? '');
@@ -27,7 +23,10 @@ function ConvenioModal({ initial, categorias, onClose, onSaved }) {
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
 
-  const mixto = new Set(Object.values(actual).map(Number)).size > 1;
+  // El convenio Cumpleaños es del sistema: solo se edita su porcentaje, que rige
+  // para todas las categorías.
+  const sistema = initial?.tipo === 'cumpleanos';
+  const mixto = !sistema && new Set(Object.values(actual).map(Number)).size > 1;
   const todas = activas.length > 0 && activas.every((c) => sel.has(c.id));
 
   function toggle(id) {
@@ -41,10 +40,11 @@ function ConvenioModal({ initial, categorias, onClose, onSaved }) {
 
   async function onSubmit(e) {
     e.preventDefault();
-    if (pct !== '' && sel.size === 0) return setError('Seleccione al menos una categoría para aplicar el descuento.');
+    const cubiertas = sistema ? activas.map((c) => c.id) : [...sel];
+    if (pct !== '' && cubiertas.length === 0) return setError('Seleccione al menos una categoría para aplicar el descuento.');
     setSaving(true);
     setError('');
-    const porcentajeDescuentoCategoria = pct === '' ? {} : Object.fromEntries([...sel].map((id) => [id, Number(pct)]));
+    const porcentajeDescuentoCategoria = pct === '' ? {} : Object.fromEntries(cubiertas.map((id) => [id, Number(pct)]));
     const body = { nombre, entidad, porcentajeDescuentoCategoria };
     try {
       if (initial) await put(`/convenios/${initial.id}`, body);
@@ -62,8 +62,12 @@ function ConvenioModal({ initial, categorias, onClose, onSaved }) {
       open
       size="lg"
       onClose={onClose}
-      title={initial ? 'Editar convenio' : 'Nuevo convenio'}
-      description="Un solo porcentaje de descuento para las categorías que cubre el convenio."
+      title={sistema ? 'Convenio Cumpleaños' : initial ? 'Editar convenio' : 'Nuevo convenio'}
+      description={
+        sistema
+          ? 'Se puede usar solo en el mes de cumpleaños del paciente, un día al mes, sobre toda la cuenta de ese día.'
+          : 'Un solo porcentaje de descuento para las categorías que cubre el convenio.'
+      }
       footer={
         <>
           <Button variant="outline" onClick={onClose}>
@@ -77,10 +81,12 @@ function ConvenioModal({ initial, categorias, onClose, onSaved }) {
     >
       <form id="convenio-form" onSubmit={onSubmit} className="flex flex-col gap-4">
         {error && <Alert>{error}</Alert>}
-        <div className="grid gap-4 md:grid-cols-2">
-          <Input label="Nombre del convenio" required maxLength={160} value={nombre} onChange={(e) => setNombre(e.target.value)} />
-          <Input label="Entidad" required maxLength={200} value={entidad} onChange={(e) => setEntidad(e.target.value)} />
-        </div>
+        {!sistema && (
+          <div className="grid gap-4 md:grid-cols-2">
+            <Input label="Nombre del convenio" required maxLength={160} value={nombre} onChange={(e) => setNombre(e.target.value)} />
+            <Input label="Entidad" required maxLength={200} value={entidad} onChange={(e) => setEntidad(e.target.value)} />
+          </div>
+        )}
         <Input
           label="Porcentaje de descuento (%)"
           type="number"
@@ -93,6 +99,7 @@ function ConvenioModal({ initial, categorias, onClose, onSaved }) {
           hint={mixto ? 'Este convenio tenía porcentajes distintos por categoría; al guardar quedará uno solo.' : 'Deje vacío para no aplicar descuento.'}
           className="md:max-w-xs"
         />
+        {!sistema && (
         <fieldset className="rounded-2xl border border-line p-4">
           <legend className="px-1 text-sm font-semibold">Categorías que cubre</legend>
           {activas.length === 0 ? (
@@ -129,6 +136,7 @@ function ConvenioModal({ initial, categorias, onClose, onSaved }) {
             </>
           )}
         </fieldset>
+        )}
       </form>
     </Modal>
   );
@@ -191,7 +199,7 @@ export default function ConveniosTab({ canWrite }) {
                     <td className={`${td} text-center`}>
                       {ids.length === 0 ? (
                         <span className="text-xs text-faint">Sin descuento</span>
-                      ) : cubreTodas ? (
+                      ) : cubreTodas || c.tipo === 'cumpleanos' ? (
                         <Badge tone="primary">Todas</Badge>
                       ) : (
                         <span className="flex flex-wrap justify-center gap-1">

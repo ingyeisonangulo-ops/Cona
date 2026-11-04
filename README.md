@@ -57,7 +57,7 @@ Se despliega como **un solo servicio** (Express sirve la API y el frontend compi
 
 ## 2. Migraciones
 
-- SQL versionado en `backend/migrations/NNN_nombre.sql` (001…010), aplicado por `backend/scripts/migrate.js` en orden, cada archivo en su transacción, con `pg_advisory_lock` y checksum SHA-256 (un archivo ya aplicado no puede modificarse: cree una migración nueva).
+- SQL versionado en `backend/migrations/NNN_nombre.sql` (001…011), aplicado por `backend/scripts/migrate.js` en orden, cada archivo en su transacción, con `pg_advisory_lock` y checksum SHA-256 (un archivo ya aplicado no puede modificarse: cree una migración nueva).
 - El mismo script **crea o ajusta el rol `crm_app`** (`LOGIN NOSUPERUSER NOBYPASSRLS NOCREATEDB NOCREATEROLE`) con la contraseña `APP_DB_PASSWORD`.
 - Se ejecuta automáticamente en cada `npm start`. Manualmente:
 

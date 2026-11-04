@@ -5,7 +5,7 @@ import { badRequest, requireFound } from '../lib/errors.js';
 import { parse, txRoute } from '../lib/txRoute.js';
 import { requirePermission } from '../middleware/authorize.js';
 import { valorConDescuento } from '../services/metrics.js';
-import { cedulaField, descuentoCumpleanosPct, findPacienteByCedula, insertPaciente, mapPaciente, pacienteDatosSchema } from './pacientes.js';
+import { cedulaField, findPacienteByCedula, insertPaciente, mapPaciente, pacienteDatosSchema, usoConvenioCumpleanos } from './pacientes.js';
 import { canSeeCost } from './catalog.js';
 
 // Registro de servicios realizados (atenciones).
@@ -40,12 +40,9 @@ const atencionSchema = z.object({
  * valor_cobrado = valor público con descuento del convenio para la categoría,
  * salvo "Otros" (valor manual justificado). costo_aplicado y puntos se toman
  * del catálogo y quedan congelados.
- *
- * Mes de cumpleaños: el descuento de cumpleaños no se suma al del convenio, vale
- * el mayor. Si gana el de cumpleaños el servicio queda sin convenio, para que las
- * cifras de convenios del tablero solo cuenten descuentos que dio el convenio.
+ * El convenio Cumpleaños tiene un solo porcentaje para todas las categorías.
  */
-async function computeItem(item, { fecha, fechaNacimiento, cumpleanosPct }) {
+async function computeItem(item) {
   const s = (await db.query('SELECT * FROM servicios WHERE id = $1', [item.servicioId])).rows[0];
   if (!s || s.status !== 'active') throw badRequest('El servicio no existe o está inactivo', 'INVALID_SERVICIO');
 
@@ -53,19 +50,16 @@ async function computeItem(item, { fecha, fechaNacimiento, cumpleanosPct }) {
   if (item.convenioId) {
     const c = (await db.query('SELECT * FROM convenios WHERE id = $1', [item.convenioId])).rows[0];
     if (!c || c.status !== 'active') throw badRequest('El convenio no existe o está inactivo', 'INVALID_CONVENIO');
-    descuento = Number(c.porcentaje_descuento_categoria?.[s.categoria_id] ?? 0);
+    const pcts = c.porcentaje_descuento_categoria ?? {};
+    descuento = c.tipo === 'cumpleanos' ? Math.max(0, ...Object.values(pcts).map(Number)) : Number(pcts[s.categoria_id] ?? 0);
   }
 
   const valorLista = Number(s.valor_publico);
   const manual = Boolean(item.otros);
-  const enMesCumpleanos = Boolean(fechaNacimiento) && fechaNacimiento.slice(5, 7) === fecha.slice(5, 7);
-  const cumpleanos = !manual && enMesCumpleanos && cumpleanosPct > descuento;
-  if (cumpleanos) descuento = cumpleanosPct;
   return {
     servicioId: s.id,
     colaboradorId: item.colaboradorId,
-    convenioId: cumpleanos ? null : (item.convenioId ?? null),
-    descuentoCumpleanos: cumpleanos,
+    convenioId: item.convenioId ?? null,
     valorLista,
     descuentoPct: manual ? 0 : descuento,
     valorCobrado: manual ? Math.round(item.otros.valor * 100) / 100 : valorConDescuento(valorLista, descuento),
@@ -75,6 +69,20 @@ async function computeItem(item, { fecha, fechaNacimiento, cumpleanosPct }) {
     motivoValorManual: manual ? item.otros.motivo : null,
   };
 }
+
+// Convenio Cumpleaños: solo en el mes de cumpleaños y en un único día de ese mes
+// (ese día se puede registrar más de una vez). Un servicio anulado libera el uso.
+async function assertConvenioCumpleanos({ pacienteId, fechaNacimiento, fecha, excluirId }) {
+  if (fechaNacimiento?.slice(5, 7) !== fecha.slice(5, 7)) {
+    throw badRequest('El convenio Cumpleaños solo se puede aplicar en el mes de cumpleaños del paciente', 'CUMPLEANOS_FUERA_DE_MES');
+  }
+  const usadoEn = await usoConvenioCumpleanos(pacienteId, fecha, excluirId);
+  if (usadoEn && usadoEn !== fecha) {
+    throw badRequest(`El paciente ya usó el convenio Cumpleaños este mes (${usadoEn})`, 'CUMPLEANOS_YA_USADO');
+  }
+}
+
+const convenioCumpleanosId = async () => (await db.query("SELECT id FROM convenios WHERE tipo = 'cumpleanos'")).rows[0]?.id;
 
 const SR_SELECT = `SELECT sr.*, s.nombre AS servicio_nombre, u.full_name AS colaborador_nombre,
     cv.nombre AS convenio_nombre, p.cedula, p.nombre AS paciente_nombre, p.apellido AS paciente_apellido,
@@ -98,7 +106,6 @@ const mapSR = (r) => ({
   convenio: r.convenio_nombre,
   valorLista: Number(r.valor_lista),
   descuentoPct: Number(r.descuento_pct),
-  descuentoCumpleanos: r.descuento_cumpleanos,
   valorCobrado: Number(r.valor_cobrado),
   costoAplicado: Number(r.costo_aplicado),
   puntos: r.puntos,
@@ -135,15 +142,20 @@ atencionesRouter.post(
       }
 
       const fecha = data.fecha ?? (await db.query('SELECT app_today()::text AS d')).rows[0].d;
-      const contexto = { fecha, fechaNacimiento: paciente.fecha_nacimiento, cumpleanosPct: await descuentoCumpleanosPct() };
+      // El convenio Cumpleaños cubre toda la cuenta: si un servicio lo lleva, se
+      // aplica a todos los de la atención (salvo los de valor manual).
+      const cumpleanosId = await convenioCumpleanosId();
+      const conCumpleanos = data.items.some((i) => i.convenioId && i.convenioId === cumpleanosId);
+      if (conCumpleanos) await assertConvenioCumpleanos({ pacienteId: paciente.id, fechaNacimiento: paciente.fecha_nacimiento, fecha });
+      const items = conCumpleanos ? data.items.map((i) => (i.otros ? i : { ...i, convenioId: cumpleanosId })) : data.items;
+
       const ids = [];
-      for (const item of data.items) {
-        const v = await computeItem(item, contexto);
+      for (const item of items) {
+        const v = await computeItem(item);
         const { rows } = await db.query(
           `INSERT INTO servicios_realizados (organization_id, paciente_id, servicio_id, colaborador_id, fecha, convenio_id,
-             valor_lista, descuento_pct, valor_cobrado, costo_aplicado, puntos, valor_manual, motivo_valor_manual, usuario_registro_id,
-             descuento_cumpleanos)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15) RETURNING id`,
+             valor_lista, descuento_pct, valor_cobrado, costo_aplicado, puntos, valor_manual, motivo_valor_manual, usuario_registro_id)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) RETURNING id`,
           [
             req.user.organizationId,
             paciente.id,
@@ -159,7 +171,6 @@ atencionesRouter.post(
             v.valorManual,
             v.motivoValorManual,
             req.user.id,
-            v.descuentoCumpleanos,
           ],
         );
         ids.push(rows[0].id);
@@ -245,14 +256,17 @@ serviciosRealizadosRouter.put(
       const data = parse(editSchema, req.body ?? {});
       const prev = mapSR(requireFound(await findSR(id)));
       if (prev.estado === 'anulado') throw badRequest('Un servicio anulado no se puede modificar');
-      const nacimiento = (await db.query('SELECT fecha_nacimiento FROM pacientes WHERE id = $1', [prev.paciente.id])).rows[0].fecha_nacimiento;
-      const v = await computeItem(data, { fecha: data.fecha, fechaNacimiento: nacimiento, cumpleanosPct: await descuentoCumpleanosPct() });
+      if (data.convenioId && data.convenioId === (await convenioCumpleanosId())) {
+        const { fecha_nacimiento: fechaNacimiento } = (await db.query('SELECT fecha_nacimiento FROM pacientes WHERE id = $1', [prev.paciente.id])).rows[0];
+        await assertConvenioCumpleanos({ pacienteId: prev.paciente.id, fechaNacimiento, fecha: data.fecha, excluirId: id });
+      }
+      const v = await computeItem(data);
       await db.query(
         `UPDATE servicios_realizados SET servicio_id = $1, colaborador_id = $2, convenio_id = $3, fecha = $4,
            valor_lista = $5, descuento_pct = $6, valor_cobrado = $7, costo_aplicado = $8, puntos = $9,
-           valor_manual = $10, motivo_valor_manual = $11, descuento_cumpleanos = $12
-         WHERE id = $13`,
-        [v.servicioId, v.colaboradorId, v.convenioId, data.fecha, v.valorLista, v.descuentoPct, v.valorCobrado, v.costoAplicado, v.puntos, v.valorManual, v.motivoValorManual, v.descuentoCumpleanos, id],
+           valor_manual = $10, motivo_valor_manual = $11
+         WHERE id = $12`,
+        [v.servicioId, v.colaboradorId, v.convenioId, data.fecha, v.valorLista, v.descuentoPct, v.valorCobrado, v.costoAplicado, v.puntos, v.valorManual, v.motivoValorManual, id],
       );
       const { servicioId, colaboradorId, convenioId, fecha, valorCobrado } = prev;
       res.locals.audit = { metadata: { before: { servicioId, colaboradorId, convenioId, fecha, valorCobrado }, after: { ...data, valorCobrado: v.valorCobrado } } };
