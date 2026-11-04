@@ -33,10 +33,17 @@ export const pacienteDatosSchema = z.object({
   fechaNacimiento: z
     .iso.date('Ingrese la fecha de nacimiento')
     .refine((f) => f >= '1900-01-01' && f <= fechaHoy(), 'La fecha de nacimiento no es válida'),
+  genero: z.enum(['F', 'M'], { message: 'Seleccione el género' }),
+  barrio: z
+    .string('Ingrese el barrio')
+    .trim()
+    .min(2, 'Ingrese el barrio')
+    .max(80, 'Barrio muy largo')
+    .regex(/^[\p{L}\p{N} .,#°-]+$/u, 'El barrio solo admite letras, números y signos básicos'),
 });
 
-// Editar: la fecha es opcional porque los pacientes antiguos pueden no tenerla.
-const pacienteEdicionSchema = pacienteDatosSchema.partial({ fechaNacimiento: true });
+// Editar: son opcionales porque los pacientes antiguos pueden no tenerlos.
+const pacienteEdicionSchema = pacienteDatosSchema.partial({ fechaNacimiento: true, genero: true, barrio: true });
 
 const idParam = z.object({ id: z.uuid('Identificador inválido') });
 const searchQuery = z.object({ q: z.string().trim().max(80).default('') });
@@ -49,6 +56,8 @@ export const mapPaciente = (r) => ({
   telefono: r.telefono,
   fechaRegistro: r.fecha_registro,
   fechaNacimiento: r.fecha_nacimiento,
+  genero: r.genero,
+  barrio: r.barrio,
   medioOrigen: r.medio_origen,
 });
 
@@ -72,9 +81,9 @@ export async function findPacienteByCedula(cedula) {
 
 export async function insertPaciente(organizationId, cedula, datos) {
   const { rows } = await db.query(
-    `INSERT INTO pacientes (organization_id, cedula, nombre, apellido, telefono, medio_origen, fecha_nacimiento)
-     VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
-    [organizationId, cedula, datos.nombre, datos.apellido, datos.telefono, datos.medioOrigen, datos.fechaNacimiento],
+    `INSERT INTO pacientes (organization_id, cedula, nombre, apellido, telefono, medio_origen, fecha_nacimiento, genero, barrio)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
+    [organizationId, cedula, datos.nombre, datos.apellido, datos.telefono, datos.medioOrigen, datos.fechaNacimiento, datos.genero, datos.barrio],
   );
   return rows[0];
 }
@@ -287,9 +296,9 @@ pacientesRouter.put(
       const prev = requireFound((await db.query('SELECT * FROM pacientes WHERE id = $1', [id])).rows[0]);
       const { rows } = await db.query(
         `UPDATE pacientes SET nombre = $1, apellido = $2, telefono = $3, medio_origen = $4,
-           fecha_nacimiento = coalesce($5, fecha_nacimiento)
-         WHERE id = $6 RETURNING *`,
-        [data.nombre, data.apellido, data.telefono, data.medioOrigen, data.fechaNacimiento ?? null, id],
+           fecha_nacimiento = coalesce($5, fecha_nacimiento), genero = coalesce($6, genero), barrio = coalesce($7, barrio)
+         WHERE id = $8 RETURNING *`,
+        [data.nombre, data.apellido, data.telefono, data.medioOrigen, data.fechaNacimiento ?? null, data.genero ?? null, data.barrio ?? null, id],
       );
       res.locals.audit = { metadata: { before: mapPaciente(prev), after: data } };
       return { paciente: mapPaciente(rows[0]) };

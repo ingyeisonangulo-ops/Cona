@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { History, Pencil, Search, UserRound } from 'lucide-react';
-import { EstadoBadge, MEDIOS_ORIGEN, formatFecha, todayBogota } from '../components/business.jsx';
+import { EstadoBadge, GeneroField, MEDIOS_ORIGEN, formatFecha, todayBogota } from '../components/business.jsx';
 import { Alert, Badge, Button, Card, EmptyState, IconButton, Input, Modal, PageHeader, Select, Spinner, TableWrap, td, th } from '../components/ui.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 import { put } from '../lib/api.js';
@@ -71,6 +71,8 @@ function EditModal({ paciente, onClose, onSaved }) {
     apellido: paciente.apellido,
     telefono: paciente.telefono,
     fechaNacimiento: paciente.fechaNacimiento ?? '',
+    genero: paciente.genero ?? '',
+    barrio: paciente.barrio ?? '',
     medioOrigen: paciente.medioOrigen,
   });
   const [error, setError] = useState('');
@@ -81,7 +83,7 @@ function EditModal({ paciente, onClose, onSaved }) {
     setSaving(true);
     setError('');
     try {
-      await put(`/pacientes/${paciente.id}`, { ...form, fechaNacimiento: form.fechaNacimiento || undefined });
+      await put(`/pacientes/${paciente.id}`, { ...form, fechaNacimiento: form.fechaNacimiento || undefined, genero: form.genero || undefined, barrio: form.barrio.trim() || undefined });
       onSaved();
     } catch (err) {
       setError(err.message);
@@ -112,6 +114,8 @@ function EditModal({ paciente, onClose, onSaved }) {
         <Input label="Apellido" value={form.apellido} onChange={set('apellido')} />
         <Input label="Teléfono" type="tel" value={form.telefono} onChange={set('telefono')} />
         <Input label="Fecha de nacimiento" type="date" min="1900-01-01" max={todayBogota()} value={form.fechaNacimiento} onChange={set('fechaNacimiento')} />
+        <GeneroField value={form.genero} onChange={(genero) => setForm((f) => ({ ...f, genero }))} />
+        <Input label="Barrio" maxLength={80} value={form.barrio} onChange={set('barrio')} />
         <Select label="Medio de origen" className="md:col-span-2" value={form.medioOrigen} onChange={set('medioOrigen')}>
           {MEDIOS_ORIGEN.map((m) => (
             <option key={m}>{m}</option>

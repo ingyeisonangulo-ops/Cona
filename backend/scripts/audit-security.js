@@ -206,7 +206,7 @@ try {
     return { org, gerente, paciente, cat };
   });
   const asiA = await Client.as(EMAILS.asistente);
-  const pacA = (await asiA.req('POST', '/pacientes', { cedula: '11223344', nombre: 'Paciente', apellido: 'Propio', telefono: '3001112233', medioOrigen: 'Referido', fechaNacimiento: '1990-01-15' })).data.paciente;
+  const pacA = (await asiA.req('POST', '/pacientes', { cedula: '11223344', nombre: 'Paciente', apellido: 'Propio', telefono: '3001112233', medioOrigen: 'Referido', fechaNacimiento: '1990-01-15', genero: 'F', barrio: 'Centro' })).data.paciente;
 
   // Nivel API: otra organización no ve nada de la primera y viceversa.
   const gerB = await Client.as('gerente@ajena.test', 'GerenteAjeno#2026');

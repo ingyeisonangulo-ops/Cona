@@ -4,6 +4,7 @@ import {
   ALERTA_STYLES,
   AlertaBadge,
   EstadoBadge,
+  GeneroField,
   MEDIOS_ORIGEN,
   SlotPicker,
   addDays,
@@ -61,7 +62,7 @@ function NuevaCitaModal({ fecha, onClose, onSaved }) {
   const cat = useCatalogos({ convenios: false });
   const [cedula, setCedula] = useState('');
   const [lookup, setLookup] = useState(null);
-  const [nuevo, setNuevo] = useState({ nombre: '', apellido: '', telefono: '', fechaNacimiento: '', medioOrigen: '' });
+  const [nuevo, setNuevo] = useState({ nombre: '', apellido: '', telefono: '', fechaNacimiento: '', genero: '', barrio: '', medioOrigen: '' });
   const [form, setForm] = useState({ servicioId: '', colaboradorId: '' });
   const [slot, setSlot] = useState({ fecha, hora: '' });
   const [error, setError] = useState('');
@@ -144,6 +145,8 @@ function NuevaCitaModal({ fecha, onClose, onSaved }) {
             <Input label="Apellido" required value={nuevo.apellido} onChange={(e) => setNuevo({ ...nuevo, apellido: e.target.value })} />
             <Input label="Teléfono" type="tel" required value={nuevo.telefono} onChange={(e) => setNuevo({ ...nuevo, telefono: e.target.value })} />
             <Input label="Fecha de nacimiento" type="date" min="1900-01-01" max={todayBogota()} required value={nuevo.fechaNacimiento} onChange={(e) => setNuevo({ ...nuevo, fechaNacimiento: e.target.value })} />
+            <GeneroField required value={nuevo.genero} onChange={(genero) => setNuevo({ ...nuevo, genero })} />
+            <Input label="Barrio" required maxLength={80} value={nuevo.barrio} onChange={(e) => setNuevo({ ...nuevo, barrio: e.target.value })} />
             <Select label="Medio de origen" className="md:col-span-2" required value={nuevo.medioOrigen} onChange={(e) => setNuevo({ ...nuevo, medioOrigen: e.target.value })}>
               <option value="">Seleccione…</option>
               {MEDIOS_ORIGEN.map((m) => (

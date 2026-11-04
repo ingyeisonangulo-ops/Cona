@@ -213,3 +213,9 @@ Cada módulo incluye **caminos felices** (✅) y **rutas de fallo** (⛔), que d
 - [ ] Como Asistente, **Servicios y convenios** no muestra Puntos ni Costo clínica.
 - [ ] Como Colaborador, **Servicios** y **Categorías** muestran solo lo de su cargo, y el número de servicios por categoría cuenta solo esos.
 - [ ] Como Colaborador, el menú no tiene Inicio; al entrar va directo a **Mi progreso**.
+
+## 17. Género y barrio del paciente
+
+- [ ] **Registrar servicios** y **Nueva cita**: un paciente nuevo exige **Género** (F o M, solo una opción) y **Barrio**.
+- [ ] El barrio acepta letras, números y signos básicos (por ejemplo "Barrio 7 de Agosto").
+- [ ] Un paciente existente se registra sin que se le pidan; se pueden agregar en **Pacientes → Editar**.

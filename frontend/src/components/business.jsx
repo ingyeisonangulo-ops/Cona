@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { get } from '../lib/api.js';
 import { IconButton, Spinner } from './ui.jsx';
@@ -176,3 +176,21 @@ export const porcentajeUnico = (map) => {
   const valores = Object.values(map ?? {}).map(Number);
   return valores.length ? Math.max(...valores) : null;
 };
+
+// Género del paciente: dos opciones excluyentes (F o M).
+export function GeneroField({ value, onChange, required }) {
+  const name = useId();
+  return (
+    <fieldset className="flex flex-col gap-1.5">
+      <legend className="mb-1.5 text-[13px] font-medium text-text">Género</legend>
+      <div className="flex gap-6">
+        {['F', 'M'].map((g) => (
+          <label key={g} className="touch-target inline-flex cursor-pointer items-center gap-2 text-sm font-medium">
+            <input type="radio" name={name} value={g} required={required} checked={value === g} onChange={() => onChange(g)} className="size-5 cursor-pointer accent-primary" />
+            {g}
+          </label>
+        ))}
+      </div>
+    </fieldset>
+  );
+}
