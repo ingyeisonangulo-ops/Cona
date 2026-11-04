@@ -1,10 +1,10 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { db } from '../db.js';
-import { requireFound } from '../lib/errors.js';
+import { badRequest, requireFound } from '../lib/errors.js';
 import { parse, txRoute } from '../lib/txRoute.js';
 import { requirePermission } from '../middleware/authorize.js';
-import { todayParts } from '../services/metrics.js';
+import { monthBounds, todayParts } from '../services/metrics.js';
 
 export const pacientesRouter = Router();
 
@@ -52,6 +52,11 @@ export const mapPaciente = (r) => ({
   medioOrigen: r.medio_origen,
 });
 
+export async function descuentoCumpleanosPct() {
+  const { rows } = await db.query('SELECT descuento_cumpleanos_pct FROM configuracion_recurrencia');
+  return Number(rows[0]?.descuento_cumpleanos_pct ?? 0);
+}
+
 export async function findPacienteByCedula(cedula) {
   return (await db.query('SELECT * FROM pacientes WHERE cedula = $1', [cedula])).rows[0];
 }
@@ -98,17 +103,68 @@ pacientesRouter.get(
   '/cumpleanos',
   requirePermission('SEARCH_PATIENTS'),
   txRoute(async (req) => {
-    const { mes } = parse(z.object({ mes: z.coerce.number().int().min(1).max(12).default(todayParts().mes) }), req.query);
+    const hoy = todayParts();
+    const { mes } = parse(z.object({ mes: z.coerce.number().int().min(1).max(12).default(hoy.mes) }), req.query);
+    const { desde, hasta } = monthBounds(hoy.anio, mes);
     const { rows } = await db.query(
-      `SELECT id, nombre, apellido, extract(day FROM fecha_nacimiento)::int AS dia
-       FROM pacientes
-       WHERE extract(month FROM fecha_nacimiento) = $1
-       ORDER BY dia, nombre, apellido`,
-      [mes],
+      `SELECT p.id, p.nombre, p.apellido, extract(day FROM p.fecha_nacimiento)::int AS dia,
+              $2::int - extract(year FROM p.fecha_nacimiento)::int AS anios,
+              coalesce(f.felicitado, false) AS felicitado,
+              EXISTS (SELECT 1 FROM servicios_realizados sr
+                      WHERE sr.paciente_id = p.id AND sr.descuento_cumpleanos AND sr.estado = 'registrado'
+                        AND sr.fecha >= $3::date AND sr.fecha < $4::date) AS descuento_aplicado
+       FROM pacientes p
+       LEFT JOIN felicitaciones_cumpleanos f ON f.paciente_id = p.id AND f.anio = $2
+       WHERE extract(month FROM p.fecha_nacimiento) = $1
+       ORDER BY dia, p.nombre, p.apellido`,
+      [mes, hoy.anio, desde, hasta],
     );
     const sinFecha = (await db.query('SELECT count(*)::int AS n FROM pacientes WHERE fecha_nacimiento IS NULL')).rows[0].n;
-    return { mes, cumpleaneros: rows.map((r) => ({ id: r.id, nombre: `${r.nombre} ${r.apellido}`, dia: r.dia })), sinFecha };
+    return {
+      mes,
+      anio: hoy.anio,
+      descuentoPct: await descuentoCumpleanosPct(),
+      cumpleaneros: rows.map((r) => ({
+        id: r.id,
+        nombre: `${r.nombre} ${r.apellido}`,
+        dia: r.dia,
+        anios: r.anios,
+        felicitado: r.felicitado,
+        descuento: r.descuento_aplicado ? 'Aplicado' : 'Pendiente',
+      })),
+      sinFecha,
+    };
   }),
+);
+
+// Porcentaje vigente, para mostrarlo al registrar servicios.
+pacientesRouter.get(
+  '/descuento-cumpleanos',
+  requirePermission('REGISTER_SERVICES'),
+  txRoute(async () => ({ porcentaje: await descuentoCumpleanosPct() })),
+);
+
+// Marca o desmarca la felicitación del año en curso.
+pacientesRouter.patch(
+  '/:id/felicitacion',
+  requirePermission('SEARCH_PATIENTS'),
+  txRoute(
+    async (req, res) => {
+      const { id } = parse(idParam, req.params);
+      const { felicitado } = parse(z.object({ felicitado: z.boolean() }), req.body ?? {});
+      const paciente = requireFound((await db.query('SELECT id, fecha_nacimiento FROM pacientes WHERE id = $1', [id])).rows[0]);
+      if (!paciente.fecha_nacimiento) throw badRequest('El paciente no tiene fecha de nacimiento');
+      const { anio } = todayParts();
+      await db.query(
+        `INSERT INTO felicitaciones_cumpleanos (organization_id, paciente_id, anio, felicitado) VALUES ($1, $2, $3, $4)
+         ON CONFLICT (paciente_id, anio) DO UPDATE SET felicitado = EXCLUDED.felicitado`,
+        [req.user.organizationId, id, anio, felicitado],
+      );
+      res.locals.audit = { entityId: id, metadata: { anio, felicitado } };
+      return { felicitado };
+    },
+    { audit: 'PACIENTE_FELICITADO', entityType: 'paciente' },
+  ),
 );
 
 pacientesRouter.get(

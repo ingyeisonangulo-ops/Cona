@@ -159,6 +159,27 @@ configuracionRouter.put(
   ),
 );
 
+// Descuento de cumpleaños: lo define el Gerente (MANAGE_COLLABORATORS).
+configuracionRouter.put(
+  '/cumpleanos',
+  txRoute(
+    async (req, res) => {
+      const { porcentaje } = parse(
+        z.object({ porcentaje: z.coerce.number().min(0, 'Mínimo 0%').max(100, 'Máximo 100%').multipleOf(0.01, 'Máximo 2 decimales') }),
+        req.body ?? {},
+      );
+      await db.query(
+        `INSERT INTO configuracion_recurrencia (organization_id, descuento_cumpleanos_pct) VALUES ($1, $2)
+         ON CONFLICT (organization_id) DO UPDATE SET descuento_cumpleanos_pct = EXCLUDED.descuento_cumpleanos_pct`,
+        [req.user.organizationId, porcentaje],
+      );
+      res.locals.audit = { entityId: req.user.organizationId, metadata: { porcentaje } };
+      return { porcentaje };
+    },
+    { audit: 'DESCUENTO_CUMPLEANOS_CONFIGURED', entityType: 'configuracion_recurrencia' },
+  ),
+);
+
 // ---------------------------------------------------------------------------
 // Vista del Colaborador — ULTRA RESTRINGIDA
 // Solo puntos, metas en puntos y cantidades. Nunca dinero, comisiones,

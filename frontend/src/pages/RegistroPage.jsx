@@ -5,16 +5,19 @@ import { MEDIOS_ORIGEN, colaboradoresPara, nombreConCargo, todayBogota, useCatal
 import { Alert, Button, Card, IconButton, Input, PageHeader, Select } from '../components/ui.jsx';
 import { get, post } from '../lib/api.js';
 import { formatCOP } from '../lib/format.js';
+import { useResource } from '../lib/useResource.js';
 
 const EMPTY_PACIENTE = { nombre: '', apellido: '', telefono: '', fechaNacimiento: '', medioOrigen: '' };
 const newItem = () => ({ key: crypto.randomUUID(), servicioId: '', colaboradorId: '', convenioId: '', otros: null });
 
-function previewValor(item, servicios, convenios) {
+// Estimado en pantalla; el valor definitivo lo calcula el servidor. El descuento
+// de cumpleaños no se suma al del convenio: vale el mayor.
+function previewValor(item, servicios, convenios, cumpleanosPct) {
   if (item.otros) return Number(item.otros.valor || 0);
   const s = servicios.find((x) => x.id === item.servicioId);
   if (!s) return null;
   const c = convenios.find((x) => x.id === item.convenioId);
-  const pct = Number(c?.porcentajeDescuentoCategoria?.[s.categoriaId] ?? 0);
+  const pct = Math.max(Number(c?.porcentajeDescuentoCategoria?.[s.categoriaId] ?? 0), cumpleanosPct);
   return Math.round(s.valorPublico * (100 - pct)) / 100;
 }
 
@@ -49,6 +52,7 @@ function Pasos({ actual }) {
 
 export default function RegistroPage() {
   const cat = useCatalogos();
+  const descuento = useResource('/pacientes/descuento-cumpleanos');
   const [cedula, setCedula] = useState('');
   const [lookup, setLookup] = useState(null); // { existe, paciente } | null
   const [buscando, setBuscando] = useState(false);
@@ -95,7 +99,8 @@ export default function RegistroPage() {
   }
 
   const setItem = (key, patch) => setItems((list) => list.map((i) => (i.key === key ? { ...i, ...patch } : i)));
-  const total = items.reduce((a, i) => a + (previewValor(i, cat.servicios, cat.convenios) ?? 0), 0);
+  const cumpleanosPct = paciente.fechaNacimiento && paciente.fechaNacimiento.slice(5, 7) === fecha.slice(5, 7) ? (descuento.data?.porcentaje ?? 0) : 0;
+  const total = items.reduce((a, i) => a + (previewValor(i, cat.servicios, cat.convenios, cumpleanosPct) ?? 0), 0);
   const listo = Boolean(lookup) && items.every((i) => i.servicioId && i.colaboradorId);
 
   async function onSubmit(e) {
@@ -172,6 +177,9 @@ export default function RegistroPage() {
             </Alert>
           )}
           {lookup && !existe && <Alert tone="success">Paciente nuevo: complete sus datos.</Alert>}
+          {lookup && cumpleanosPct > 0 && (
+            <Alert tone="success">Mes de cumpleaños: {cumpleanosPct}% de descuento en sus servicios. Si tiene convenio, se aplica el mayor de los dos.</Alert>
+          )}
 
           <fieldset disabled={personalDisabled} className="grid gap-3 disabled:opacity-70 md:grid-cols-2">
             <legend className="sr-only">Datos personales</legend>
@@ -197,7 +205,7 @@ export default function RegistroPage() {
           <fieldset disabled={!lookup} className="flex flex-col gap-3 disabled:opacity-60">
             <legend className="sr-only">Servicios</legend>
             {items.map((item, idx) => {
-              const valor = previewValor(item, cat.servicios, cat.convenios);
+              const valor = previewValor(item, cat.servicios, cat.convenios, cumpleanosPct);
               return (
                 <div key={item.key} className="rounded-2xl border border-line p-4">
                   <div className="mb-2 flex items-center justify-between">

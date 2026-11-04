@@ -193,3 +193,14 @@ Cada módulo incluye **caminos felices** (✅) y **rutas de fallo** (⛔), que d
 - [ ] Las flechas recorren los 12 meses en ciclo (de diciembre pasa a enero y de enero a diciembre).
 - [ ] Debajo de la lista se indica cuántos pacientes no tienen fecha de nacimiento.
 - [ ] Gerente, Asistente y Super Admin ven el apartado; el Colaborador no lo ve en el menú y la API responde 403.
+
+## 15. Felicitaciones y descuento de cumpleaños
+
+- [ ] En **Cumpleañeros**, el día de quien cumple años hoy aparece en amarillo (solo en el mes actual).
+- [ ] La columna **Años** muestra los que cumple este año.
+- [ ] La casilla **Felicitación** queda guardada al recargar y se puede desmarcar. El año siguiente vuelve a estar sin marcar.
+- [ ] Como Gerente, **Definir/Cambiar** fija el porcentaje; la Asistente lo ve pero no puede cambiarlo.
+- [ ] Con 0 % no se aplica ningún descuento.
+- [ ] **Registrar servicios** en el mes de cumpleaños muestra el aviso y el valor con descuento; fuera de ese mes, no.
+- [ ] Con convenio se aplica el mayor de los dos, sin sumarlos. Un valor manual no recibe descuento.
+- [ ] La columna **Descuento** pasa a **Aplicado** al registrar el servicio y vuelve a **Pendiente** si ese servicio se anula.

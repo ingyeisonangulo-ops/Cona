@@ -44,6 +44,8 @@ export const ACTION_LABELS = {
   USER_DEACTIVATED: 'Usuario desactivado',
   SEED_USER_CREATED: 'Usuario inicial (seed)',
   CATALOGO_IMPORTADO: 'Catálogo importado',
+  PACIENTE_FELICITADO: 'Felicitación de cumpleaños',
+  DESCUENTO_CUMPLEANOS_CONFIGURED: 'Descuento de cumpleaños configurado',
   CATEGORIA_CREATED: 'Categoría creada',
   CATEGORIA_UPDATED: 'Categoría editada',
   CATEGORIA_STATUS_CHANGED: 'Estado de categoría',

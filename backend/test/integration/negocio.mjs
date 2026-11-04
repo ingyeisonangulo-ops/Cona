@@ -310,7 +310,7 @@ try {
   r = await asi.req('GET', '/pacientes/cumpleanos?mes=5');
   ok(r.status === 200 && r.data.cumpleaneros.map((c) => c.nombre).join() === 'Bruno Díaz,Ana Riascos', 'cumpleañeros del mes ordenados por día', JSON.stringify(r.data));
   ok(r.data.cumpleaneros[0].dia === 3 && r.data.cumpleaneros[1].dia === 14, 'cumpleañeros con su día');
-  ok(Object.keys(r.data.cumpleaneros[0]).sort().join() === 'dia,id,nombre', 'cumpleañeros solo expone nombre y día');
+  ok(Object.keys(r.data.cumpleaneros[0]).sort().join() === 'anios,descuento,dia,felicitado,id,nombre', 'cumpleañeros no expone datos de contacto');
   r = await asi.req('GET', '/pacientes/cumpleanos?mes=8');
   ok(r.status === 200 && r.data.cumpleaneros.length === 0, 'mes sin cumpleañeros');
   r = await asi.req('GET', '/pacientes/cumpleanos');
@@ -324,6 +324,66 @@ try {
   ok(r.status === 200 && r.data.paciente.fechaNacimiento === '2001-05-03', 'editar sin fecha conserva la fecha de nacimiento');
   r = await asi.req('PUT', `/pacientes/${bruno.id}`, { nombre: 'Bruno', apellido: 'Díaz', telefono: '3000000003', medioOrigen: 'Otro', fechaNacimiento: '2001-06-03' });
   ok(r.status === 200 && r.data.paciente.fechaNacimiento === '2001-06-03', 'editar corrige la fecha de nacimiento');
+
+  // ----------------------------------------------------- Descuento de cumpleaños (migración 010)
+  const [aHoy, mHoy, dHoy] = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Bogota' }).format(new Date()).split('-');
+  const mesHoy = Number(mHoy);
+  const nacimientoDelMes = `${Number(aHoy) - 28}-${mHoy}-${dHoy}`;
+  const otroMes = String((mesHoy % 12) + 1).padStart(2, '0');
+  const nuevoPaciente = (nombre, fechaNacimiento) => ({ nombre, apellido: 'Cumple', telefono: '3000000004', medioOrigen: 'Otro', fechaNacimiento });
+  const item = { servicioId: consulta.id, colaboradorId };
+
+  r = await asi.req('POST', '/atenciones', { cedula: '7700200', paciente: nuevoPaciente('Sinpct', nacimientoDelMes), items: [item] });
+  ok(r.status === 201 && r.data.servicios[0].valorCobrado === 60000 && !r.data.servicios[0].descuentoCumpleanos, 'sin porcentaje definido no hay descuento');
+  r = await asi.req('PUT', '/configuracion/cumpleanos', { porcentaje: 20 });
+  ok(r.status === 403, 'la Asistente no define el descuento de cumpleaños');
+  r = await ger.req('PUT', '/configuracion/cumpleanos', { porcentaje: 120 });
+  ok(r.status === 400, 'descuento mayor a 100% rechazado');
+  r = await ger.req('PUT', '/configuracion/cumpleanos', { porcentaje: 20 });
+  ok(r.status === 200 && r.data.porcentaje === 20, 'el Gerente define el descuento de cumpleaños');
+  r = await ger.req('PUT', '/configuracion/recurrencia', { puntosNivel60: 25, puntosNivel80: 50 });
+  r = await asi.req('GET', '/pacientes/descuento-cumpleanos');
+  ok(r.status === 200 && r.data.porcentaje === 20, 'configurar recurrencia no borra el descuento de cumpleaños');
+
+  r = await asi.req('POST', '/atenciones', {
+    cedula: '7700201',
+    paciente: nuevoPaciente('Festejada', nacimientoDelMes),
+    items: [item, { ...item, convenioId: convenio.id }, { ...item, otros: { valor: 70000, motivo: 'Tarifa especial' } }],
+  });
+  const [srSolo, srConvenio, srManual] = r.data.servicios.sort((a, b) => a.valorCobrado - b.valorCobrado || (a.convenioId ? 1 : -1) || 0);
+  ok(r.status === 201 && srSolo.valorCobrado === 48000 && srSolo.descuentoCumpleanos, 'mes de cumpleaños: 60.000 − 20%', JSON.stringify(r.data.servicios));
+  ok(srConvenio.valorCobrado === 48000 && srConvenio.convenioId === null, 'gana el mayor: 20% de cumpleaños sobre 10% de convenio');
+  ok(srManual.valorCobrado === 70000 && !srManual.descuentoCumpleanos, 'el valor manual no recibe descuento de cumpleaños');
+  r = await asi.req('POST', '/atenciones', { cedula: '7700202', paciente: nuevoPaciente('Otromes', `1990-${otroMes}-10`), items: [item] });
+  ok(r.status === 201 && r.data.servicios[0].valorCobrado === 60000, 'fuera del mes de cumpleaños no hay descuento');
+
+  await ger.req('PUT', '/configuracion/cumpleanos', { porcentaje: 5 });
+  r = await asi.req('POST', '/atenciones', { cedula: '7700203', paciente: nuevoPaciente('Conconvenio', nacimientoDelMes), items: [{ ...item, convenioId: convenio.id }] });
+  const srMayor = r.data.servicios[0];
+  ok(srMayor.valorCobrado === 54000 && srMayor.convenioId === convenio.id && !srMayor.descuentoCumpleanos, 'gana el mayor: 10% de convenio sobre 5% de cumpleaños');
+  await ger.req('PUT', '/configuracion/cumpleanos', { porcentaje: 20 });
+
+  r = await asi.req('GET', `/pacientes/cumpleanos?mes=${mesHoy}`);
+  const fila = (n) => r.data.cumpleaneros.find((c) => c.nombre === `${n} Cumple`);
+  ok(fila('Festejada')?.anios === 28 && fila('Festejada')?.dia === Number(dHoy), 'años que cumple en el año en curso');
+  ok(fila('Festejada')?.descuento === 'Aplicado' && fila('Sinpct')?.descuento === 'Pendiente', 'descuento Aplicado o Pendiente');
+  ok(r.data.descuentoPct === 20 && fila('Festejada')?.felicitado === false, 'porcentaje vigente y felicitación sin marcar');
+
+  const festejada = fila('Festejada');
+  r = await col.req('PATCH', `/pacientes/${festejada.id}/felicitacion`, { felicitado: true });
+  ok(r.status === 403, 'Colaborador no marca felicitaciones');
+  r = await asi.req('PATCH', `/pacientes/${festejada.id}/felicitacion`, { felicitado: true });
+  ok(r.status === 200, 'marcar felicitación');
+  r = await asi.req('GET', `/pacientes/cumpleanos?mes=${mesHoy}`);
+  ok(fila('Festejada').felicitado === true, 'felicitación marcada');
+  r = await asi.req('PATCH', `/pacientes/${festejada.id}/felicitacion`, { felicitado: false });
+  r = await asi.req('GET', `/pacientes/cumpleanos?mes=${mesHoy}`);
+  ok(fila('Festejada').felicitado === false, 'felicitación desmarcada');
+
+  r = await asi.req('POST', '/atenciones', { cedula: '7700204', paciente: nuevoPaciente('Anulada', nacimientoDelMes), items: [item] });
+  await ger.req('PATCH', `/servicios-realizados/${r.data.servicios[0].id}/anular`, { motivo: 'Registro duplicado' });
+  r = await asi.req('GET', `/pacientes/cumpleanos?mes=${mesHoy}`);
+  ok(fila('Anulada').descuento === 'Pendiente', 'un servicio anulado no cuenta como descuento usado');
 } catch (err) {
   console.error(err);
   crashed = true;
