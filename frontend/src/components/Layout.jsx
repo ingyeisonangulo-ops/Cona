@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext.jsx';
 import { get } from '../lib/api.js';
+import { todayBogota } from './business.jsx';
 import { Logo, LogoMark } from './Logo.jsx';
 import { Avatar, IconButton, cx } from './ui.jsx';
 
@@ -44,7 +45,7 @@ const SECTIONS = [
       { to: '/agenda', label: 'Agenda', icon: CalendarDays, perms: ['MANAGE_APPOINTMENTS'] },
       { to: '/inasistencias', label: 'Inasistencias', short: 'Ausencias', icon: CalendarX2, perms: ['CLOSE_ABSENCES'], badge: 'pendientes' },
       { to: '/pacientes', label: 'Pacientes', icon: UserRound, perms: ['SEARCH_PATIENTS'] },
-      { to: '/cumpleaneros', label: 'Cumpleañeros', icon: Cake, perms: ['SEARCH_PATIENTS'] },
+      { to: '/cumpleaneros', label: 'Cumpleañeros', icon: Cake, perms: ['SEARCH_PATIENTS'], badge: 'cumpleanos' },
     ],
   },
   {
@@ -87,21 +88,24 @@ function useVisibleSections() {
 // Contadores del menú y la campana (se refrescan al cambiar de página).
 function useCounters(pathname) {
   const { can } = useAuth();
-  const [c, setC] = useState({ pendientes: 0, alertas: 0 });
+  const [c, setC] = useState({ pendientes: 0, alertas: 0, cumpleanos: 0 });
   const verAusencias = can('CLOSE_ABSENCES');
   const verAgenda = can('MANAGE_APPOINTMENTS');
+  const verPacientes = can('SEARCH_PATIENTS');
   useEffect(() => {
     let alive = true;
     Promise.all([
       verAusencias ? get('/cierres-ausencia/pendientes').then((d) => d.citas.length) : 0,
       verAgenda ? get('/citas/alertas').then((d) => d.citas.filter((x) => x.alerta === 'rojo' || x.alerta === 'naranja').length) : 0,
+      // Pacientes que cumplen años hoy (la API devuelve el mes actual por defecto).
+      verPacientes ? get('/pacientes/cumpleanos').then((d) => d.cumpleaneros.filter((x) => x.dia === Number(todayBogota().slice(8, 10))).length) : 0,
     ])
-      .then(([pendientes, alertas]) => alive && setC({ pendientes, alertas }))
+      .then(([pendientes, alertas, cumpleanos]) => alive && setC({ pendientes, alertas, cumpleanos }))
       .catch(() => {});
     return () => {
       alive = false;
     };
-  }, [pathname, verAusencias, verAgenda]);
+  }, [pathname, verAusencias, verAgenda, verPacientes]);
   return c;
 }
 

@@ -159,7 +159,7 @@ export default function RegistroPage() {
       <PageHeader eyebrow="Operación" title="Registrar servicios" description="Inicie con la cédula del paciente (RF-08)." />
       <Pasos actual={!lookup ? 0 : listo ? 2 : 1} />
       <form onSubmit={onSubmit} className="grid gap-5 lg:grid-cols-5">
-        <Card className="flex flex-col gap-4 lg:col-span-2">
+        <Card className="lg:col-span-2" bodyClassName="flex flex-col gap-4">
           <h2 className="text-base font-bold">Paciente</h2>
           <div className="flex items-end gap-2">
             <label className="flex flex-1 flex-col gap-1.5 text-sm font-medium">
@@ -196,9 +196,6 @@ export default function RegistroPage() {
             </Alert>
           )}
           {lookup && !existe && <Alert tone="success">Paciente nuevo: complete sus datos.</Alert>}
-          {cumpleDisponible && (
-            <Alert tone="success">Mes de cumpleaños: puede elegir el convenio Cumpleaños ({cumplePct}%) para toda la cuenta de este día.</Alert>
-          )}
           {enMesCumple && usadoEn && usadoEn !== fecha && <Alert>Ya usó el convenio Cumpleaños este mes ({formatFecha(usadoEn)}).</Alert>}
 
           <fieldset disabled={personalDisabled} className="grid gap-3 disabled:opacity-70 md:grid-cols-2">
@@ -216,7 +213,7 @@ export default function RegistroPage() {
           </fieldset>
         </Card>
 
-        <Card className="flex flex-col gap-4 lg:col-span-3">
+        <Card className="lg:col-span-3" bodyClassName="flex flex-col gap-4">
           <div className="flex flex-wrap items-end justify-between gap-3">
             <h2 className="text-base font-bold">Servicios realizados</h2>
             <Input label="Fecha de atención" type="date" max={todayBogota()} value={fecha} onChange={(e) => setFecha(e.target.value)} className="w-44" />
