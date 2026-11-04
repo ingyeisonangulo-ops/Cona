@@ -16,6 +16,7 @@ import AgendaPage from './pages/AgendaPage.jsx';
 import CumpleanerosPage from './pages/CumpleanerosPage.jsx';
 import InasistenciasPage from './pages/InasistenciasPage.jsx';
 import MetasPage from './pages/MetasPage.jsx';
+import MetricasPage from './pages/MetricasPage.jsx';
 import MiProgresoPage from './pages/MiProgresoPage.jsx';
 import PacientesPage from './pages/PacientesPage.jsx';
 import RegistroPage from './pages/RegistroPage.jsx';
@@ -71,6 +72,7 @@ export default function App() {
         <Route path="cumpleaneros" element={<RequirePermission perms={['SEARCH_PATIENTS']}><CumpleanerosPage /></RequirePermission>} />
         <Route path="agenda" element={<RequirePermission perms={['MANAGE_APPOINTMENTS']}><AgendaPage /></RequirePermission>} />
         <Route path="inasistencias" element={<RequirePermission perms={['CLOSE_ABSENCES']}><InasistenciasPage /></RequirePermission>} />
+        <Route path="metricas" element={<RequirePermission perms={['VIEW_DASHBOARD_FINANCE']}><MetricasPage /></RequirePermission>} />
         <Route path="metas" element={<RequirePermission perms={['MANAGE_COLLABORATORS']}><MetasPage /></RequirePermission>} />
         <Route path="mi-progreso" element={<RequirePermission perms={['VIEW_PERSONAL_PROGRESS']}><MiProgresoPage /></RequirePermission>} />
         <Route path="usuarios" element={<RequirePermission perms={['MANAGE_USERS']}><UsersPage /></RequirePermission>} />

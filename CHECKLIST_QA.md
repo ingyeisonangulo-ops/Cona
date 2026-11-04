@@ -219,3 +219,11 @@ Cada módulo incluye **caminos felices** (✅) y **rutas de fallo** (⛔), que d
 - [ ] **Registrar servicios** y **Nueva cita**: un paciente nuevo exige **Género** (F o M, solo una opción) y **Barrio**.
 - [ ] El barrio acepta letras, números y signos básicos (por ejemplo "Barrio 7 de Agosto").
 - [ ] Un paciente existente se registra sin que se le pidan; se pueden agregar en **Pacientes → Editar**.
+
+## 18. Métricas de la clínica
+
+- [ ] **Métricas** solo aparece para Gerente y Super Admin; la Asistente y el Colaborador reciben 403 en la API.
+- [ ] Las flechas cambian de año; no permiten ir a años futuros.
+- [ ] Totales, gráficas y tabla por mes coinciden entre sí y excluyen los servicios anulados.
+- [ ] Pacientes y servicios por género y por edad suman lo mismo que el total del año.
+- [ ] Si hay servicios con costo $0, aparece el aviso de que la utilidad real es menor.

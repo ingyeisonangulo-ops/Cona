@@ -430,6 +430,25 @@ try {
   ok(deEsteMes.descuentos === enLista.filter((c) => c.descuento === 'Aplicado').length && deEsteMes.descuentos >= 1, 'resumen cuenta quienes aplicaron el descuento');
   r = await col.req('GET', '/pacientes/cumpleanos/resumen');
   ok(r.status === 403, 'Colaborador no ve el resumen');
+
+  // ----------------------------------------------------- Métricas de la clínica
+  r = await asi.req('GET', '/tablero/metricas');
+  ok(r.status === 403, 'la Asistente no ve las métricas');
+  r = await col.req('GET', '/tablero/metricas');
+  ok(r.status === 403, 'el Colaborador no ve las métricas');
+  r = await ger.req('GET', '/tablero/metricas?anio=1999');
+  ok(r.status === 400, 'año inválido → 400');
+  r = await ger.req('GET', `/tablero/metricas?anio=${Number(aHoy) - 1}`);
+  ok(r.status === 200 && r.data.meses.every((m) => m.servicios === 0 && m.ingreso === 0) && r.data.pacientes === 0, 'año sin datos en cero');
+  r = await ger.req('GET', '/tablero/metricas');
+  const met = r.data;
+  const totalDe = (lista, campo) => lista.reduce((a, x) => a + x[campo], 0);
+  ok(r.status === 200 && met.meses.length === 12 && met.meses.every((m) => m.utilidad === Math.round((m.ingreso - m.costo) * 100) / 100), 'doce meses con utilidad = ingreso − costo');
+  const srMes = totalDe(met.meses, 'servicios');
+  ok(srMes > 0 && srMes === totalDe(met.generos, 'servicios') && srMes === totalDe(met.edades, 'servicios'), 'los servicios cuadran por mes, género y edad');
+  ok(met.pacientes === totalDe(met.generos, 'pacientes') && met.pacientes === totalDe(met.edades, 'pacientes'), 'cada paciente cuenta una vez por género y una por edad');
+  ok(Math.round(totalDe(met.meses, 'ingreso')) === Math.round(totalDe(met.generos, 'ingreso')), 'el ingreso cuadra por mes y por género');
+  ok(met.generos.find((g) => g.grupo === 'F').pacientes > 0 && met.edades.find((g) => g.grupo === '18 a 29').pacientes > 0, 'agrupa por género y rango de edad');
 } catch (err) {
   console.error(err);
   crashed = true;

@@ -50,6 +50,7 @@ try {
   const protegidos = [
     ['GET', '/auth/me'],
     ['GET', '/tablero'],
+    ['GET', '/tablero/metricas'],
     ['GET', '/pacientes?q=a'],
     ['GET', `/pacientes/${BAD_UUID}/historial`],
     ['GET', '/pacientes/cedula/123456'],
@@ -78,6 +79,7 @@ try {
 
   const colaboradorDenegado = [
     ['GET', '/tablero', 'Tablero gerencial'],
+    ['GET', '/tablero/metricas', 'Métricas de la clínica'],
     ['GET', '/pacientes?q=a', 'Búsqueda de pacientes'],
     ['GET', '/pacientes/cedula/1061234567', 'Datos de paciente por cédula'],
     ['GET', `/pacientes/${BAD_UUID}/historial`, 'Historial de paciente'],
@@ -106,6 +108,7 @@ try {
 
   const asistenteDenegado = [
     ['GET', '/tablero', 'Tablero gerencial'],
+    ['GET', '/tablero/metricas', 'Métricas de la clínica'],
     ['GET', '/users', 'Usuarios'],
     ['GET', '/roles', 'Roles'],
     ['GET', '/audit-logs', 'Auditoría'],

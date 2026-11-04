@@ -5,6 +5,7 @@ import {
   Cake,
   CalendarDays,
   CalendarX2,
+  ChartColumn,
   ClipboardList,
   ClipboardPlus,
   LayoutDashboard,
@@ -51,6 +52,7 @@ const SECTIONS = [
   {
     label: 'Gestión',
     items: [
+      { to: '/metricas', label: 'Métricas', icon: ChartColumn, perms: ['VIEW_DASHBOARD_FINANCE'] },
       { to: '/metas', label: 'Metas y comisiones', short: 'Metas', icon: Target, perms: ['MANAGE_COLLABORATORS'] },
       { to: '/catalogo', label: 'Servicios y convenios', short: 'Servicios', icon: Stethoscope, perms: ['MANAGE_SERVICES', 'REGISTER_SERVICES', 'VIEW_ROLE_SERVICES'] },
     ],

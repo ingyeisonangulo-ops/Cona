@@ -1,8 +1,9 @@
 import { Router } from 'express';
+import { z } from 'zod';
 import { db } from '../db.js';
 import { parse, txRoute } from '../lib/txRoute.js';
 import { requirePermission } from '../middleware/authorize.js';
-import { monthBounds, porcentaje } from '../services/metrics.js';
+import { monthBounds, porcentaje, todayParts } from '../services/metrics.js';
 import { desempenoColaboradores, loadRecurrencia } from '../services/performance.js';
 import { periodoSchema } from './colaboradores.js';
 
@@ -22,6 +23,82 @@ function clasificar(servicios) {
     clasificacion: top.has(s.servicioId) ? 'mas_rentable' : bottom.has(s.servicioId) ? 'menos_rentable' : null,
   }));
 }
+
+// Rangos de edad de las métricas. La edad es la que el paciente cumple en el año
+// consultado, así cada paciente queda en un solo rango todo el año.
+const RANGOS_EDAD = [
+  ['0 a 12', 0, 12],
+  ['13 a 17', 13, 17],
+  ['18 a 29', 18, 29],
+  ['30 a 44', 30, 44],
+  ['45 a 59', 45, 59],
+  ['60 o más', 60, Infinity],
+];
+const SIN_DATO = 'Sin dato';
+const grupoVacio = (grupo) => ({ grupo, pacientes: 0, servicios: 0, ingreso: 0 });
+const sumarEn = (mapa, grupo, fila) => {
+  const g = mapa.get(grupo);
+  g.pacientes += 1;
+  g.servicios += fila.servicios;
+  g.ingreso += Number(fila.ingreso);
+};
+const listaGrupos = (mapa) => [...mapa.values()].map((g) => ({ ...g, ingreso: money(g.ingreso) }));
+
+// Métricas de un año: servicios y resultado por mes, y quiénes usan los servicios
+// (género y edad). Solo cuenta servicios no anulados.
+tableroRouter.get(
+  '/metricas',
+  requirePermission('VIEW_DASHBOARD_FINANCE'),
+  txRoute(async (req) => {
+    const { anio } = parse(z.object({ anio: z.coerce.number().int().min(2020).max(2100).default(todayParts().anio) }), req.query);
+    const desde = `${anio}-01-01`;
+    const hasta = `${anio + 1}-01-01`;
+
+    const { rows: porMes } = await db.query(
+      `SELECT m.mes, count(sr.id)::int AS servicios, count(DISTINCT sr.paciente_id)::int AS pacientes,
+              coalesce(sum(sr.valor_cobrado), 0) AS ingreso, coalesce(sum(sr.costo_aplicado), 0) AS costo
+       FROM generate_series(1, 12) AS m(mes)
+       LEFT JOIN servicios_realizados sr ON sr.estado = 'registrado' AND sr.fecha >= $1::date AND sr.fecha < $2::date
+         AND extract(month FROM sr.fecha) = m.mes
+       GROUP BY m.mes ORDER BY m.mes`,
+      [desde, hasta],
+    );
+    const meses = porMes.map((r) => ({
+      mes: r.mes,
+      servicios: r.servicios,
+      pacientes: r.pacientes,
+      ingreso: money(r.ingreso),
+      costo: money(r.costo),
+      utilidad: money(r.ingreso - r.costo),
+    }));
+
+    const { rows: porPaciente } = await db.query(
+      `SELECT p.genero, $3::int - extract(year FROM p.fecha_nacimiento)::int AS edad,
+              count(*)::int AS servicios, sum(sr.valor_cobrado) AS ingreso
+       FROM servicios_realizados sr JOIN pacientes p ON p.id = sr.paciente_id
+       WHERE sr.estado = 'registrado' AND sr.fecha >= $1::date AND sr.fecha < $2::date
+       GROUP BY p.id, p.genero, p.fecha_nacimiento`,
+      [desde, hasta, anio],
+    );
+    const generos = new Map(['F', 'M', SIN_DATO].map((g) => [g, grupoVacio(g)]));
+    const edades = new Map([...RANGOS_EDAD.map(([r]) => r), SIN_DATO].map((r) => [r, grupoVacio(r)]));
+    for (const fila of porPaciente) {
+      sumarEn(generos, fila.genero ?? SIN_DATO, fila);
+      const rango = fila.edad == null ? null : RANGOS_EDAD.find(([, min, max]) => fila.edad >= min && fila.edad <= max);
+      sumarEn(edades, rango?.[0] ?? SIN_DATO, fila);
+    }
+
+    const sinCosto = (
+      await db.query(
+        `SELECT count(*)::int AS n FROM servicios_realizados
+         WHERE estado = 'registrado' AND costo_aplicado = 0 AND fecha >= $1::date AND fecha < $2::date`,
+        [desde, hasta],
+      )
+    ).rows[0].n;
+
+    return { anio, meses, pacientes: porPaciente.length, generos: listaGrupos(generos), edades: listaGrupos(edades), serviciosSinCosto: sinCosto };
+  }),
+);
 
 tableroRouter.get(
   '/',
