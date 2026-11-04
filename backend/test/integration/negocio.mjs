@@ -440,6 +440,9 @@ try {
   ok(r.status === 400, 'año inválido → 400');
   r = await ger.req('GET', `/tablero/metricas?anio=${Number(aHoy) - 1}`);
   ok(r.status === 200 && r.data.meses.every((m) => m.servicios === 0 && m.ingreso === 0) && r.data.pacientes === 0, 'año sin datos en cero');
+  await asi.req('POST', '/atenciones', { cedula: '7700301', paciente: { ...nuevoPaciente('Barrio1', `1990-${mm(mesSiguiente)}-10`), barrio: 'Bellavista' }, items: [item] });
+  await asi.req('POST', '/atenciones', { cedula: '7700302', paciente: { ...nuevoPaciente('Barrio2', `1990-${mm(mesSiguiente)}-10`), barrio: '  BELLAVISTA' }, items: [item] });
+  await asi.req('POST', '/atenciones', { cedula: '7700303', paciente: { ...nuevoPaciente('Barrio3', `1990-${mm(mesSiguiente)}-10`), barrio: 'béllavista' }, items: [item] });
   r = await ger.req('GET', '/tablero/metricas');
   const met = r.data;
   const totalDe = (lista, campo) => lista.reduce((a, x) => a + x[campo], 0);
@@ -447,6 +450,10 @@ try {
   const srMes = totalDe(met.meses, 'servicios');
   ok(srMes > 0 && srMes === totalDe(met.generos, 'servicios') && srMes === totalDe(met.edades, 'servicios'), 'los servicios cuadran por mes, género y edad');
   ok(met.pacientes === totalDe(met.generos, 'pacientes') && met.pacientes === totalDe(met.edades, 'pacientes'), 'cada paciente cuenta una vez por género y una por edad');
+  ok(srMes === totalDe(met.barrios, 'servicios') && met.pacientes === totalDe(met.barrios, 'pacientes'), 'los servicios y pacientes cuadran por barrio');
+  const bellavista = met.barrios.filter((b) => /bellavista/i.test(b.grupo));
+  ok(bellavista.length === 1 && bellavista[0].pacientes === 3 && bellavista[0].servicios === 3, 'agrupa el barrio sin importar mayúsculas, espacios ni tildes', JSON.stringify(met.barrios));
+  ok(met.barrios.every((b, i, l) => i === 0 || b.grupo === 'Sin dato' || l[i - 1].pacientes >= b.pacientes), 'barrios ordenados por pacientes');
   ok(Math.round(totalDe(met.meses, 'ingreso')) === Math.round(totalDe(met.generos, 'ingreso')), 'el ingreso cuadra por mes y por género');
   ok(met.generos.find((g) => g.grupo === 'F').pacientes > 0 && met.edades.find((g) => g.grupo === '18 a 29').pacientes > 0, 'agrupa por género y rango de edad');
 } catch (err) {

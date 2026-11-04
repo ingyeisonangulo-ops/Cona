@@ -9,15 +9,26 @@ import { useResource } from '../lib/useResource.js';
 const NOMBRE_GENERO = { F: 'Mujeres', M: 'Hombres', 'Sin dato': 'Sin dato' };
 const COLOR_GENERO = { F: SERIES[0], M: SERIES[1], 'Sin dato': OTHER };
 const suma = (lista, campo) => lista.reduce((a, x) => a + x[campo], 0);
+const TOP_BARRIOS = 10;
+
+// Los barrios con más pacientes; el resto se agrupa en una sola fila.
+function topBarrios(barrios) {
+  const sinDato = barrios.filter((b) => b.grupo === 'Sin dato');
+  const conDato = barrios.filter((b) => b.grupo !== 'Sin dato');
+  const resto = conDato.slice(TOP_BARRIOS);
+  if (resto.length === 0) return barrios;
+  const otros = { grupo: `Otros ${resto.length} barrios`, pacientes: suma(resto, 'pacientes'), servicios: suma(resto, 'servicios'), ingreso: suma(resto, 'ingreso') };
+  return [...conDato.slice(0, TOP_BARRIOS), otros, ...sinDato];
+}
 
 // Quién usa los servicios: pacientes atendidos, servicios e ingresos por grupo.
-function TablaGrupos({ title, description, grupos, nombre = (g) => g }) {
+function TablaGrupos({ title, description, grupos, nombre = (g) => g, etiqueta = 'Grupo' }) {
   return (
     <Card flush title={title} description={description}>
       <TableWrap minWidth="min-w-[420px]">
         <thead>
           <tr>
-            <th className={th}>Grupo</th>
+            <th className={th}>{etiqueta}</th>
             <th className={`${th} text-right`}>Pacientes</th>
             <th className={`${th} text-right`}>Servicios</th>
             <th className={`${th} text-right`}>Ingresos</th>
@@ -170,6 +181,8 @@ export default function MetricasPage() {
             <TablaGrupos title="Uso de servicios por género" description="¿Quiénes usan más los servicios?" grupos={m.generos} nombre={(g) => NOMBRE_GENERO[g]} />
             <TablaGrupos title="Uso de servicios por edad" description="Edad que cumplen en el año" grupos={m.edades} />
           </div>
+
+          <TablaGrupos title="Barrios que más nos visitan" description={`Ordenados por pacientes atendidos en ${anio}`} grupos={topBarrios(m.barrios)} etiqueta="Barrio" />
         </div>
       )}
     </>

@@ -225,5 +225,6 @@ Cada módulo incluye **caminos felices** (✅) y **rutas de fallo** (⛔), que d
 - [ ] **Métricas** solo aparece para Gerente y Super Admin; la Asistente y el Colaborador reciben 403 en la API.
 - [ ] Las flechas cambian de año; no permiten ir a años futuros.
 - [ ] Totales, gráficas y tabla por mes coinciden entre sí y excluyen los servicios anulados.
-- [ ] Pacientes y servicios por género y por edad suman lo mismo que el total del año.
+- [ ] Pacientes y servicios por género, por edad y por barrio suman lo mismo que el total del año.
+- [ ] **Barrios que más nos visitan** agrupa "Centro" y "CENTRO" en una sola fila, y muestra los 10 primeros más "Otros barrios".
 - [ ] Si hay servicios con costo $0, aparece el aviso de que la utilidad real es menor.

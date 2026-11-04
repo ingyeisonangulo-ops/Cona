@@ -43,6 +43,8 @@ const sumarEn = (mapa, grupo, fila) => {
   g.ingreso += Number(fila.ingreso);
 };
 const listaGrupos = (mapa) => [...mapa.values()].map((g) => ({ ...g, ingreso: money(g.ingreso) }));
+// El barrio se escribe a mano: "Centro", "centro " y "CENTRO" son el mismo.
+const claveBarrio = (b) => b.normalize('NFD').replace(/\p{M}/gu, '').replace(/\s+/g, ' ').trim().toLowerCase();
 
 // Métricas de un año: servicios y resultado por mes, y quiénes usan los servicios
 // (género y edad). Solo cuenta servicios no anulados.
@@ -73,16 +75,20 @@ tableroRouter.get(
     }));
 
     const { rows: porPaciente } = await db.query(
-      `SELECT p.genero, $3::int - extract(year FROM p.fecha_nacimiento)::int AS edad,
+      `SELECT p.genero, p.barrio, $3::int - extract(year FROM p.fecha_nacimiento)::int AS edad,
               count(*)::int AS servicios, sum(sr.valor_cobrado) AS ingreso
        FROM servicios_realizados sr JOIN pacientes p ON p.id = sr.paciente_id
        WHERE sr.estado = 'registrado' AND sr.fecha >= $1::date AND sr.fecha < $2::date
-       GROUP BY p.id, p.genero, p.fecha_nacimiento`,
+       GROUP BY p.id, p.genero, p.barrio, p.fecha_nacimiento`,
       [desde, hasta, anio],
     );
     const generos = new Map(['F', 'M', SIN_DATO].map((g) => [g, grupoVacio(g)]));
     const edades = new Map([...RANGOS_EDAD.map(([r]) => r), SIN_DATO].map((r) => [r, grupoVacio(r)]));
+    const barrios = new Map();
     for (const fila of porPaciente) {
+      const clave = fila.barrio ? claveBarrio(fila.barrio) : SIN_DATO;
+      if (!barrios.has(clave)) barrios.set(clave, grupoVacio(fila.barrio?.replace(/\s+/g, ' ').trim() ?? SIN_DATO));
+      sumarEn(barrios, clave, fila);
       sumarEn(generos, fila.genero ?? SIN_DATO, fila);
       const rango = fila.edad == null ? null : RANGOS_EDAD.find(([, min, max]) => fila.edad >= min && fila.edad <= max);
       sumarEn(edades, rango?.[0] ?? SIN_DATO, fila);
@@ -96,7 +102,12 @@ tableroRouter.get(
       )
     ).rows[0].n;
 
-    return { anio, meses, pacientes: porPaciente.length, generos: listaGrupos(generos), edades: listaGrupos(edades), serviciosSinCosto: sinCosto };
+    // Los que más nos visitan primero; "Sin dato" siempre al final.
+    const ordenBarrios = listaGrupos(barrios).sort(
+      (a, b) => (a.grupo === SIN_DATO) - (b.grupo === SIN_DATO) || b.pacientes - a.pacientes || b.servicios - a.servicios || a.grupo.localeCompare(b.grupo, 'es'),
+    );
+
+    return { anio, meses, pacientes: porPaciente.length, generos: listaGrupos(generos), edades: listaGrupos(edades), barrios: ordenBarrios, serviciosSinCosto: sinCosto };
   }),
 );
 
